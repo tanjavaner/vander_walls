@@ -8,13 +8,14 @@
  */
 import { useMemo } from 'react';
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  ResponsiveContainer, ReferenceLine, Area, ComposedChart,
+  Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  ResponsiveContainer, ReferenceLine, ReferenceArea, Area, ComposedChart,
 } from 'recharts';
 
 import { tAtP } from '../../physics/vdw.js';
 import { deltaPm, lambda } from '../../physics/metastable.js';
 import { rhoFromVm } from '../../physics/density.js';
+import { useChartZoom } from '../../hooks/useChartZoom.js';
 import { linspace } from '../../utils/format.js';
 
 export default function IsobarsView({ params, P, modelMode, axisMode }) {
@@ -47,22 +48,46 @@ export default function IsobarsView({ params, P, modelMode, axisMode }) {
   }, [params, P, M, a, b, Pcr, Vmin, Vmax]);
 
   const dev = useMemo(() => {
-    let m = 0, at = 0, s = 0;
-    for (const d of data) {
-      if (!Number.isFinite(d.deltaT)) continue;
-      if (Math.abs(d.deltaT) > m) { m = Math.abs(d.deltaT); at = d.Vm; s = d.deltaT; }
+    let maxAbs = 0;
+    let atV = 0;
+    let signed = 0;
+
+    for (const point of data) {
+      if (!Number.isFinite(point.deltaT)) continue;
+      if (Math.abs(point.deltaT) > maxAbs) {
+        maxAbs = Math.abs(point.deltaT);
+        atV = point.Vm;
+        signed = point.deltaT;
+      }
     }
-    return { maxAbs: m, atV: at, signed: s };
+
+    return { maxAbs, atV, signed };
   }, [data]);
 
+  const { xDomain, visibleData, selectionDomain, isZoomed, resetZoom, chartHandlers } = useChartZoom(data, xKey);
+  const zoomedData = visibleData.length ? visibleData : data;
+
   const yDomain = useMemo(() => {
-    const vals = data.flatMap((d) =>
-      [d.Tclassic, d.Ttag, d.Tcritical, d.Tlow, d.Thigh].filter((x) => Number.isFinite(x) && x > 0)
+    const vals = zoomedData.flatMap((point) =>
+      [point.Tclassic, point.Ttag, point.Tcritical, point.Tlow, point.Thigh].filter(
+        (value) => Number.isFinite(value) && value > 0
+      )
     );
     if (!vals.length) return [0, 1000];
-    const lo = Math.min(...vals), hi = Math.max(...vals);
+    const lo = Math.min(...vals);
+    const hi = Math.max(...vals);
     return [Math.max(0, lo * 0.9), Math.min(hi * 1.05, Tcr * 3)];
-  }, [data, Tcr]);
+  }, [zoomedData, Tcr]);
+
+  const deltaYDomain = useMemo(() => {
+    const vals = zoomedData.map((point) => point.deltaT).filter(Number.isFinite);
+    if (!vals.length) return [-1, 1];
+    const lo = Math.min(...vals);
+    const hi = Math.max(...vals);
+    const span = hi - lo;
+    const pad = span > 1e-9 ? span * 0.08 : Math.max(Math.abs(hi) * 0.2, 0.2);
+    return [Math.min(lo - pad, 0), Math.max(hi + pad, 0)];
+  }, [zoomedData]);
 
   const mainKey = isTag ? 'Ttag' : 'Tclassic';
   const mainColor = isTag ? '#10b981' : '#fbbf24';
@@ -79,6 +104,7 @@ export default function IsobarsView({ params, P, modelMode, axisMode }) {
             {isClassic && 'Klasik van der Waals: T(Vₘ) = (P + a/Vₘ²)(Vₘ − b)/R'}
           </p>
         </div>
+
         {!isClassic && dev.maxAbs > 0.01 && (
           <div className="flex items-center gap-3 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/30 rounded font-mono text-[10px]">
             <div>
@@ -96,54 +122,131 @@ export default function IsobarsView({ params, P, modelMode, axisMode }) {
             </div>
           </div>
         )}
+
+        <div className="ml-auto flex items-center gap-2 text-[10px] font-mono text-slate-500">
+          <span>yakınlaştır: grafikte sürükle</span>
+          {isZoomed && (
+            <button
+              type="button"
+              onClick={resetZoom}
+              className="px-2 py-1 rounded border border-slate-700 text-slate-300 hover:border-slate-500 hover:text-slate-100 transition-colors"
+            >
+              Sıfırla
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="flex-1 min-h-0 px-2">
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={data} margin={{ top: 10, right: 20, left: 10, bottom: 25 }}>
+          <ComposedChart data={data} margin={{ top: 10, right: 20, left: 10, bottom: 25 }} {...chartHandlers}>
             <CartesianGrid stroke="#1e293b" strokeDasharray="2 4" />
-            <XAxis dataKey={xKey} type="number" domain={['dataMin', 'dataMax']}
+            <XAxis
+              dataKey={xKey}
+              type="number"
+              domain={xDomain}
+              allowDataOverflow
               tickFormatter={(v) => (useRho ? v.toFixed(0) : v.toFixed(2))}
-              stroke="#64748b" tick={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace' }}
-              label={{ value: xLabel, position: 'insideBottom', offset: -10, fill: '#94a3b8', fontSize: 11 }} />
-            <YAxis domain={yDomain}
-              stroke="#64748b" tick={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace' }}
-              label={{ value: 'T  [K]', angle: -90, position: 'insideLeft', fill: '#94a3b8', fontSize: 11 }} />
+              stroke="#64748b"
+              tick={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace' }}
+              label={{ value: xLabel, position: 'insideBottom', offset: -10, fill: '#94a3b8', fontSize: 11 }}
+            />
+            <YAxis
+              domain={yDomain}
+              allowDataOverflow
+              stroke="#64748b"
+              tick={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace' }}
+              label={{ value: 'T  [K]', angle: -90, position: 'insideLeft', fill: '#94a3b8', fontSize: 11 }}
+            />
             <Tooltip
               contentStyle={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 6, fontSize: 11, fontFamily: 'JetBrains Mono, monospace' }}
               labelFormatter={(v) => `${useRho ? 'ρ' : 'Vₘ'} = ${Number(v).toFixed(useRho ? 1 : 3)} ${xUnit}`}
-              formatter={(val) => [Number(val).toFixed(2) + ' K']} />
+              formatter={(val) => [Number(val).toFixed(2) + ' K']}
+            />
             <Legend wrapperStyle={{ fontSize: 10, paddingTop: 8 }} />
-            <ReferenceLine y={Tcr} stroke="#64748b" strokeDasharray="3 3"
-              label={{ value: 'Tcr', fill: '#94a3b8', fontSize: 10, position: 'right' }} />
+            <ReferenceLine
+              y={Tcr}
+              stroke="#64748b"
+              strokeDasharray="3 3"
+              label={{ value: 'Tcr', fill: '#94a3b8', fontSize: 10, position: 'right' }}
+            />
 
-            <Line dataKey="Tlow" stroke="#c084fc" dot={false}
+            {selectionDomain && (
+              <ReferenceArea
+                x1={selectionDomain[0]}
+                x2={selectionDomain[1]}
+                y1={yDomain[0]}
+                y2={yDomain[1]}
+                fill="#38bdf8"
+                fillOpacity={0.08}
+                stroke="#38bdf8"
+                strokeOpacity={0.45}
+                strokeDasharray="3 3"
+              />
+            )}
+
+            <Line
+              dataKey="Tlow"
+              stroke="#c084fc"
+              dot={false}
               name={`P=${(Pcr * 0.5).toFixed(1)} atm`}
-              strokeWidth={1} strokeDasharray="3 3" isAnimationActive={false} />
-            <Line dataKey="Tcritical" stroke="#ef4444" dot={false}
-              name={`Pcr=${Pcr.toFixed(1)} atm`} strokeWidth={1.5} isAnimationActive={false} />
-            <Line dataKey="Thigh" stroke="#60a5fa" dot={false}
+              strokeWidth={1}
+              strokeDasharray="3 3"
+              isAnimationActive={false}
+            />
+            <Line
+              dataKey="Tcritical"
+              stroke="#ef4444"
+              dot={false}
+              name={`Pcr=${Pcr.toFixed(1)} atm`}
+              strokeWidth={1.5}
+              isAnimationActive={false}
+            />
+            <Line
+              dataKey="Thigh"
+              stroke="#60a5fa"
+              dot={false}
               name={`P=${(Pcr * 1.5).toFixed(1)} atm`}
-              strokeWidth={1} strokeDasharray="3 3" isAnimationActive={false} />
+              strokeWidth={1}
+              strokeDasharray="3 3"
+              isAnimationActive={false}
+            />
 
             {isCompare ? (
               <>
-                <Line dataKey="Tclassic" stroke="#fbbf24" dot={false}
+                <Line
+                  dataKey="Tclassic"
+                  stroke="#fbbf24"
+                  dot={false}
                   name={`Klasik @ P=${P.toFixed(1)} atm`}
-                  strokeWidth={2.5} strokeDasharray="5 3" isAnimationActive={false} />
-                <Line dataKey="Ttag" stroke="#10b981" dot={false}
+                  strokeWidth={2.5}
+                  strokeDasharray="5 3"
+                  isAnimationActive={false}
+                />
+                <Line
+                  dataKey="Ttag"
+                  stroke="#10b981"
+                  dot={false}
                   name={`TAĞ @ P=${P.toFixed(1)} atm`}
-                  strokeWidth={3} isAnimationActive={false} />
+                  strokeWidth={3}
+                  isAnimationActive={false}
+                />
               </>
             ) : (
-              <Line dataKey={mainKey} stroke={mainColor} dot={false} name={mainLabel}
-                strokeWidth={3} isAnimationActive={true} animationDuration={400} />
+              <Line
+                dataKey={mainKey}
+                stroke={mainColor}
+                dot={false}
+                name={mainLabel}
+                strokeWidth={3}
+                isAnimationActive={true}
+                animationDuration={400}
+              />
             )}
           </ComposedChart>
         </ResponsiveContainer>
       </div>
 
-      {/* ΔT subchart */}
       <div className="h-24 border-t border-slate-800 px-2 pt-1">
         <div className="flex items-center justify-between px-3 pt-1">
           <span className="text-[10px] uppercase tracking-wider text-slate-500 font-mono">
@@ -156,18 +259,37 @@ export default function IsobarsView({ params, P, modelMode, axisMode }) {
         <ResponsiveContainer width="100%" height="85%">
           <ComposedChart data={data} margin={{ top: 2, right: 20, left: 10, bottom: 5 }}>
             <CartesianGrid stroke="#1e293b" strokeDasharray="2 4" />
-            <XAxis dataKey={xKey} type="number" domain={['dataMin', 'dataMax']}
+            <XAxis
+              dataKey={xKey}
+              type="number"
+              domain={xDomain}
+              allowDataOverflow
               tickFormatter={(v) => (useRho ? v.toFixed(0) : v.toFixed(2))}
-              stroke="#475569" tick={{ fontSize: 9, fontFamily: 'JetBrains Mono, monospace' }} />
-            <YAxis stroke="#475569" tick={{ fontSize: 9, fontFamily: 'JetBrains Mono, monospace' }}
-              width={40} tickFormatter={(v) => v.toFixed(1)} />
+              stroke="#475569"
+              tick={{ fontSize: 9, fontFamily: 'JetBrains Mono, monospace' }}
+            />
+            <YAxis
+              domain={deltaYDomain}
+              allowDataOverflow
+              stroke="#475569"
+              tick={{ fontSize: 9, fontFamily: 'JetBrains Mono, monospace' }}
+              width={40}
+              tickFormatter={(v) => v.toFixed(1)}
+            />
             <Tooltip
               contentStyle={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 6, fontSize: 10, fontFamily: 'JetBrains Mono, monospace' }}
               labelFormatter={(v) => `${useRho ? 'ρ' : 'Vₘ'} = ${Number(v).toFixed(useRho ? 1 : 3)}`}
-              formatter={(val) => [Number(val).toFixed(2) + ' K', 'ΔT']} />
+              formatter={(val) => [Number(val).toFixed(2) + ' K', 'ΔT']}
+            />
             <ReferenceLine y={0} stroke="#475569" />
-            <Area dataKey="deltaT" stroke="#10b981" fill="#10b981" fillOpacity={0.25}
-              strokeWidth={1.5} isAnimationActive={false} />
+            <Area
+              dataKey="deltaT"
+              stroke="#10b981"
+              fill="#10b981"
+              fillOpacity={0.25}
+              strokeWidth={1.5}
+              isAnimationActive={false}
+            />
           </ComposedChart>
         </ResponsiveContainer>
       </div>

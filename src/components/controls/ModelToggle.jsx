@@ -32,7 +32,13 @@ const MODEL_HINTS = {
   tag:     '— metastabil düzeltmeli genişletilmiş model',
 };
 
-export default function ModelToggle({ modelMode, setModelMode, axisMode, setAxisMode }) {
+export default function ModelToggle({
+  modelMode,
+  setModelMode,
+  axisMode,
+  setAxisMode,
+  showAxisToggle = true,
+}) {
   return (
     <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-800 bg-slate-950/40 flex-wrap">
       <span className="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-mono">Model</span>
@@ -46,18 +52,20 @@ export default function ModelToggle({ modelMode, setModelMode, axisMode, setAxis
         {MODEL_HINTS[modelMode]}
       </span>
 
-      <div className="ml-auto flex items-center gap-2">
-        <span className="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-mono">Eksen</span>
-        <Toggle
-          options={AXIS_OPTIONS}
-          value={axisMode}
-          onChange={setAxisMode}
-          sliderColor={AXIS_COLORS[axisMode]}
-        />
-        <span className="text-[10px] font-mono text-slate-500 hidden lg:inline">
-          {axisMode === 'Vm' ? 'L/mol' : 'g/L'}
-        </span>
-      </div>
+      {showAxisToggle && (
+        <div className="ml-auto flex items-center gap-2">
+          <span className="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-mono">Eksen</span>
+          <Toggle
+            options={AXIS_OPTIONS}
+            value={axisMode}
+            onChange={setAxisMode}
+            sliderColor={AXIS_COLORS[axisMode]}
+          />
+          <span className="text-[10px] font-mono text-slate-500 hidden lg:inline">
+            {axisMode === 'Vm' ? 'L/mol' : 'g/L'}
+          </span>
+        </div>
+      )}
     </div>
   );
 }

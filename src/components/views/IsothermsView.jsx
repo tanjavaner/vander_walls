@@ -7,7 +7,7 @@
  */
 import { useMemo } from 'react';
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ResponsiveContainer, ReferenceLine, ReferenceArea, Area, ComposedChart,
 } from 'recharts';
 
@@ -15,6 +15,7 @@ import { vdw } from '../../physics/vdw.js';
 import { deltaPm, lambda } from '../../physics/metastable.js';
 import { rhoFromVm } from '../../physics/density.js';
 import { findSpinodal, maxDeviation } from '../../physics/spinodal.js';
+import { useChartZoom } from '../../hooks/useChartZoom.js';
 import { linspace } from '../../utils/format.js';
 
 export default function IsothermsView({ params, T, modelMode, axisMode }) {
@@ -27,7 +28,6 @@ export default function IsothermsView({ params, T, modelMode, axisMode }) {
   const xLabel = useRho ? 'ρ  [g/L]' : 'Vₘ  [L/mol]';
   const xUnit = useRho ? 'g/L' : 'L/mol';
 
-  // Ana veri: farklı sıcaklıklarda tüm eğriler
   const data = useMemo(() => {
     const Vs = linspace(Math.max(Vmin, b * 1.02), Vmax, 300);
     return Vs.map((v) => {
@@ -52,16 +52,29 @@ export default function IsothermsView({ params, T, modelMode, axisMode }) {
   );
 
   const deviation = useMemo(() => maxDeviation(T, params), [params, T]);
+  const { xDomain, visibleData, selectionDomain, isZoomed, resetZoom, chartHandlers } = useChartZoom(data, xKey);
+  const zoomedData = visibleData.length ? visibleData : data;
 
   const yDomain = useMemo(() => {
-    const vals = data.flatMap((d) =>
+    const vals = zoomedData.flatMap((d) =>
       [d.pClassic, d.pTag, d.pCritical, d.pSup, d.pSub].filter(Number.isFinite)
     );
     if (!vals.length) return [0, 100];
-    const lo = Math.min(...vals), hi = Math.max(...vals);
+    const lo = Math.min(...vals);
+    const hi = Math.max(...vals);
     const pad = (hi - lo) * 0.05;
     return [Math.max(lo - pad, -20), Math.min(hi + pad, params.Pcr * 3)];
-  }, [data, params.Pcr]);
+  }, [zoomedData, params.Pcr]);
+
+  const deltaYDomain = useMemo(() => {
+    const vals = zoomedData.map((d) => d.delta).filter(Number.isFinite);
+    if (!vals.length) return [-1, 1];
+    const lo = Math.min(...vals);
+    const hi = Math.max(...vals);
+    const span = hi - lo;
+    const pad = span > 1e-9 ? span * 0.08 : Math.max(Math.abs(hi) * 0.2, 0.2);
+    return [Math.min(lo - pad, 0), Math.max(hi + pad, 0)];
+  }, [zoomedData]);
 
   const mainKey = isTag ? 'pTag' : 'pClassic';
   const mainColor = isTag ? '#10b981' : '#fbbf24';
@@ -96,21 +109,40 @@ export default function IsothermsView({ params, T, modelMode, axisMode }) {
             </div>
           </div>
         )}
+
+        <div className="ml-auto flex items-center gap-2 text-[10px] font-mono text-slate-500">
+          <span>yakınlaştır: grafikte sürükle</span>
+          {isZoomed && (
+            <button
+              type="button"
+              onClick={resetZoom}
+              className="px-2 py-1 rounded border border-slate-700 text-slate-300 hover:border-slate-500 hover:text-slate-100 transition-colors"
+            >
+              Sıfırla
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="flex-1 min-h-0 px-2">
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={data} margin={{ top: 10, right: 20, left: 10, bottom: 25 }}>
+          <ComposedChart data={data} margin={{ top: 10, right: 20, left: 10, bottom: 25 }} {...chartHandlers}>
             <CartesianGrid stroke="#1e293b" strokeDasharray="2 4" />
             <XAxis
-              dataKey={xKey} type="number" domain={['dataMin', 'dataMax']}
+              dataKey={xKey}
+              type="number"
+              domain={xDomain}
+              allowDataOverflow
               tickFormatter={(v) => (useRho ? v.toFixed(0) : v.toFixed(2))}
-              stroke="#64748b" tick={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace' }}
+              stroke="#64748b"
+              tick={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace' }}
               label={{ value: xLabel, position: 'insideBottom', offset: -10, fill: '#94a3b8', fontSize: 11 }}
             />
             <YAxis
               domain={yDomain}
-              stroke="#64748b" tick={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace' }}
+              allowDataOverflow
+              stroke="#64748b"
+              tick={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace' }}
               label={{ value: 'p  [atm]', angle: -90, position: 'insideLeft', fill: '#94a3b8', fontSize: 11 }}
             />
             <Tooltip
@@ -123,43 +155,101 @@ export default function IsothermsView({ params, T, modelMode, axisMode }) {
               <ReferenceArea
                 x1={useRho ? rhoFromVm(spinodal.Vgas, M) : spinodal.Vliq}
                 x2={useRho ? rhoFromVm(spinodal.Vliq, M) : spinodal.Vgas}
-                y1={yDomain[0]} y2={yDomain[1]}
-                fill="#f59e0b" fillOpacity={0.06}
-                stroke="#f59e0b" strokeOpacity={0.25} strokeDasharray="2 2"
+                y1={yDomain[0]}
+                y2={yDomain[1]}
+                fill="#f59e0b"
+                fillOpacity={0.06}
+                stroke="#f59e0b"
+                strokeOpacity={0.25}
+                strokeDasharray="2 2"
                 label={{ value: 'S-bölgesi (metastabil)', fill: '#fbbf24', fontSize: 10, position: 'insideTop' }}
               />
             )}
 
-            <ReferenceLine y={params.Pcr} stroke="#64748b" strokeDasharray="3 3"
-              label={{ value: 'Pcr', fill: '#94a3b8', fontSize: 10, position: 'right' }} />
+            {selectionDomain && (
+              <ReferenceArea
+                x1={selectionDomain[0]}
+                x2={selectionDomain[1]}
+                y1={yDomain[0]}
+                y2={yDomain[1]}
+                fill="#38bdf8"
+                fillOpacity={0.08}
+                stroke="#38bdf8"
+                strokeOpacity={0.45}
+                strokeDasharray="3 3"
+              />
+            )}
 
-            <Line dataKey="pSub" stroke="#c084fc" dot={false}
+            <ReferenceLine
+              y={params.Pcr}
+              stroke="#64748b"
+              strokeDasharray="3 3"
+              label={{ value: 'Pcr', fill: '#94a3b8', fontSize: 10, position: 'right' }}
+            />
+
+            <Line
+              dataKey="pSub"
+              stroke="#c084fc"
+              dot={false}
               name={`T=${(Tcr * 0.85).toFixed(0)}K (sub)`}
-              strokeWidth={1} strokeDasharray="3 3" isAnimationActive={false} />
-            <Line dataKey="pCritical" stroke="#ef4444" dot={false}
-              name={`Tcr=${Tcr.toFixed(0)}K`} strokeWidth={1.5} isAnimationActive={false} />
-            <Line dataKey="pSup" stroke="#60a5fa" dot={false}
+              strokeWidth={1}
+              strokeDasharray="3 3"
+              isAnimationActive={false}
+            />
+            <Line
+              dataKey="pCritical"
+              stroke="#ef4444"
+              dot={false}
+              name={`Tcr=${Tcr.toFixed(0)}K`}
+              strokeWidth={1.5}
+              isAnimationActive={false}
+            />
+            <Line
+              dataKey="pSup"
+              stroke="#60a5fa"
+              dot={false}
               name={`T=${(Tcr * 1.15).toFixed(0)}K (süper)`}
-              strokeWidth={1} strokeDasharray="3 3" isAnimationActive={false} />
+              strokeWidth={1}
+              strokeDasharray="3 3"
+              isAnimationActive={false}
+            />
 
             {isCompare ? (
               <>
-                <Line dataKey="pClassic" stroke="#fbbf24" dot={false}
+                <Line
+                  dataKey="pClassic"
+                  stroke="#fbbf24"
+                  dot={false}
                   name={`Klasik vdW @ T=${T.toFixed(0)}K`}
-                  strokeWidth={2.5} strokeDasharray="5 3" isAnimationActive={false} />
-                <Line dataKey="pTag" stroke="#10b981" dot={false}
+                  strokeWidth={2.5}
+                  strokeDasharray="5 3"
+                  isAnimationActive={false}
+                />
+                <Line
+                  dataKey="pTag"
+                  stroke="#10b981"
+                  dot={false}
                   name={`TAĞ-vdW @ T=${T.toFixed(0)}K`}
-                  strokeWidth={3} isAnimationActive={false} />
+                  strokeWidth={3}
+                  isAnimationActive={false}
+                />
               </>
             ) : (
-              <Line dataKey={mainKey} stroke={mainColor} dot={false} name={mainLabel}
-                strokeWidth={3} isAnimationActive={true} animationDuration={400} animationEasing="ease-in-out" />
+              <Line
+                dataKey={mainKey}
+                stroke={mainColor}
+                dot={false}
+                name={mainLabel}
+                strokeWidth={3}
+                isAnimationActive={true}
+                animationDuration={400}
+                animationEasing="ease-in-out"
+              />
             )}
           </ComposedChart>
         </ResponsiveContainer>
       </div>
 
-      {/* Δp alt paneli */}
       <div className="h-24 border-t border-slate-800 px-2 pt-1">
         <div className="flex items-center justify-between px-3 pt-1">
           <span className="text-[10px] uppercase tracking-wider text-slate-500 font-mono">
@@ -172,18 +262,37 @@ export default function IsothermsView({ params, T, modelMode, axisMode }) {
         <ResponsiveContainer width="100%" height="85%">
           <ComposedChart data={data} margin={{ top: 2, right: 20, left: 10, bottom: 5 }}>
             <CartesianGrid stroke="#1e293b" strokeDasharray="2 4" />
-            <XAxis dataKey={xKey} type="number" domain={['dataMin', 'dataMax']}
+            <XAxis
+              dataKey={xKey}
+              type="number"
+              domain={xDomain}
+              allowDataOverflow
               tickFormatter={(v) => (useRho ? v.toFixed(0) : v.toFixed(2))}
-              stroke="#475569" tick={{ fontSize: 9, fontFamily: 'JetBrains Mono, monospace' }} />
-            <YAxis stroke="#475569" tick={{ fontSize: 9, fontFamily: 'JetBrains Mono, monospace' }}
-              width={40} tickFormatter={(v) => v.toFixed(1)} />
+              stroke="#475569"
+              tick={{ fontSize: 9, fontFamily: 'JetBrains Mono, monospace' }}
+            />
+            <YAxis
+              domain={deltaYDomain}
+              allowDataOverflow
+              stroke="#475569"
+              tick={{ fontSize: 9, fontFamily: 'JetBrains Mono, monospace' }}
+              width={40}
+              tickFormatter={(v) => v.toFixed(1)}
+            />
             <Tooltip
               contentStyle={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 6, fontSize: 10, fontFamily: 'JetBrains Mono, monospace' }}
               labelFormatter={(v) => `${useRho ? 'ρ' : 'Vₘ'} = ${Number(v).toFixed(useRho ? 1 : 3)}`}
-              formatter={(val) => [Number(val).toFixed(3) + ' atm', 'Δp']} />
+              formatter={(val) => [Number(val).toFixed(3) + ' atm', 'Δp']}
+            />
             <ReferenceLine y={0} stroke="#475569" />
-            <Area dataKey="delta" stroke="#10b981" fill="#10b981" fillOpacity={0.25}
-              strokeWidth={1.5} isAnimationActive={false} />
+            <Area
+              dataKey="delta"
+              stroke="#10b981"
+              fill="#10b981"
+              fillOpacity={0.25}
+              strokeWidth={1.5}
+              isAnimationActive={false}
+            />
           </ComposedChart>
         </ResponsiveContainer>
       </div>

@@ -32,6 +32,7 @@ export default function App() {
   const [tab, setTab] = useState('iso');
   const [modelMode, setModelMode] = useState('tag');
   const [axisMode, setAxisMode] = useState('Vm');
+  const showsAxisToggle = tab === 'iso' || tab === 'isobar' || tab === 'jump';
 
   return (
     <div className="min-h-screen w-full bg-[#0a0e1a] text-slate-200 relative overflow-hidden">
@@ -83,6 +84,7 @@ export default function App() {
             <ModelToggle
               modelMode={modelMode} setModelMode={setModelMode}
               axisMode={axisMode} setAxisMode={setAxisMode}
+              showAxisToggle={showsAxisToggle}
             />
 
             <nav className="flex border-b border-slate-800 overflow-x-auto">
