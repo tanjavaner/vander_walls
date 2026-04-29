@@ -127,11 +127,11 @@ export default function JumpAnimationView({ params, T, modelMode, axisMode }) {
     <div className="h-full flex flex-col">
       <div className="px-4 pt-3 pb-2 flex items-start justify-between gap-3 flex-wrap">
         <div>
-          <h3 className="text-lg font-serif text-slate-100">
+          <h3 className="text-lg font-semibold text-slate-900">
             Metastabil Sıçrama (τ → 0)
             <span className={`ml-3 text-xs font-mono px-2 py-0.5 rounded ${
-              isTag ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/30'
-                    : 'bg-amber-500/10 text-amber-300 border border-amber-500/30'
+              isTag ? 'border border-emerald-200 bg-emerald-50 text-emerald-700'
+                    : 'border border-amber-200 bg-amber-50 text-amber-700'
             }`}>
               {isTag ? 'TAĞ-vdW' : 'Klasik vdW'}
             </span>
@@ -144,12 +144,12 @@ export default function JumpAnimationView({ params, T, modelMode, axisMode }) {
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => setPlaying((p) => !p)} disabled={jumped || !isTag}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 rounded text-xs font-medium disabled:opacity-30 disabled:cursor-not-allowed">
+            className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-slate-400 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-30">
             {playing ? <Pause size={13} /> : <Play size={13} />}
             {playing ? 'Durdur' : 'Oynat'}
           </button>
           <button onClick={reset} disabled={!isTag}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 rounded text-xs font-medium disabled:opacity-30">
+            className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-slate-400 hover:text-slate-950 disabled:opacity-30">
             <RotateCcw size={13} /> Reset
           </button>
         </div>
@@ -157,28 +157,28 @@ export default function JumpAnimationView({ params, T, modelMode, axisMode }) {
 
       {/* Durum panelleri */}
       <div className="mx-4 mb-2 grid grid-cols-3 gap-2 font-mono text-[11px]">
-        <div className={`border rounded px-3 py-2 ${isTag ? 'bg-slate-900/50 border-slate-800' : 'bg-slate-900/20 border-slate-800/50 opacity-40'}`}>
+        <div className={`rounded-xl border px-3 py-2 ${isTag ? 'border-slate-200 bg-slate-50' : 'border-slate-200 bg-slate-50 opacity-40'}`}>
           <div className="text-slate-500 uppercase tracking-wider text-[9px]">τ(P,T)</div>
-          <div className="text-amber-300 text-lg tabular-nums">{isTag ? tau.toFixed(3) : '—'}</div>
-          <div className="text-slate-600 text-[9px]">metastabil ömür</div>
+          <div className="text-lg tabular-nums text-slate-900">{isTag ? tau.toFixed(3) : '—'}</div>
+          <div className="text-[9px] text-slate-500">metastabil ömür</div>
         </div>
-        <div className={`border rounded px-3 py-2 ${isTag ? 'bg-slate-900/50 border-slate-800' : 'bg-slate-900/20 border-slate-800/50 opacity-40'}`}>
+        <div className={`rounded-xl border px-3 py-2 ${isTag ? 'border-slate-200 bg-slate-50' : 'border-slate-200 bg-slate-50 opacity-40'}`}>
           <div className="text-slate-500 uppercase tracking-wider text-[9px]">Λ = exp(-1/τ)</div>
-          <div className="text-cyan-300 text-lg tabular-nums">{isTag ? lambdaVal.toFixed(4) : '—'}</div>
-          <div className="text-slate-600 text-[9px]">ağırlık fonksiyonu</div>
+          <div className="text-lg tabular-nums text-slate-900">{isTag ? lambdaVal.toFixed(4) : '—'}</div>
+          <div className="text-[9px] text-slate-500">ağırlık fonksiyonu</div>
         </div>
         <div className={`border rounded px-3 py-2 ${
-          !isTag ? 'bg-amber-500/5 border-amber-500/20'
-            : jumped ? 'bg-red-500/10 border-red-500/50'
-              : 'bg-emerald-500/10 border-emerald-500/30'
+          !isTag ? 'border-amber-200 bg-amber-50'
+            : jumped ? 'border-red-200 bg-red-50'
+              : 'border-emerald-200 bg-emerald-50'
         }`}>
           <div className="text-slate-500 uppercase tracking-wider text-[9px]">Durum</div>
           <div className={`text-lg font-semibold ${
-            !isTag ? 'text-amber-300' : jumped ? 'text-red-300' : 'text-emerald-300'
+            !isTag ? 'text-amber-700' : jumped ? 'text-red-700' : 'text-emerald-700'
           }`}>
             {!isTag ? 'Denge' : jumped ? 'SIÇRAMA' : 'Metastabil'}
           </div>
-          <div className="text-slate-600 text-[9px]">
+          <div className="text-[9px] text-slate-500">
             {!isTag ? 'klasik vdW modu' : jumped ? 'gaz dalına geçti' : 'sıvı dalı devam'}
           </div>
         </div>

@@ -1,19 +1,16 @@
-/**
- * Pill — küçük, yuvarlak kategori etiketi.
- */
 const COLORS = {
-  stone:   'bg-stone-800 text-stone-300',
-  amber:   'bg-amber-500/15 text-amber-200 border border-amber-500/30',
-  emerald: 'bg-emerald-500/15 text-emerald-200 border border-emerald-500/30',
-  rose:    'bg-rose-500/15 text-rose-200 border border-rose-500/30',
-  violet:  'bg-violet-500/15 text-violet-200 border border-violet-500/30',
-  blue:    'bg-blue-500/15 text-blue-200 border border-blue-500/30',
-  cyan:    'bg-cyan-500/15 text-cyan-200 border border-cyan-500/30',
+  stone: 'border border-slate-200 bg-slate-100 text-slate-600',
+  amber: 'border border-amber-200 bg-amber-50 text-amber-700',
+  emerald: 'border border-emerald-200 bg-emerald-50 text-emerald-700',
+  rose: 'border border-rose-200 bg-rose-50 text-rose-700',
+  violet: 'border border-violet-200 bg-violet-50 text-violet-700',
+  blue: 'border border-blue-200 bg-blue-50 text-blue-700',
+  cyan: 'border border-cyan-200 bg-cyan-50 text-cyan-700',
 };
 
 export default function Pill({ children, color = 'stone' }) {
   return (
-    <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-mono uppercase tracking-wider ${COLORS[color]}`}>
+    <span className={`inline-block rounded-full px-2.5 py-0.5 text-[10px] font-mono uppercase tracking-wider ${COLORS[color]}`}>
       {children}
     </span>
   );

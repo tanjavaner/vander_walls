@@ -97,7 +97,7 @@ export default function IsobarsView({ params, P, modelMode, axisMode }) {
     <div className="h-full flex flex-col">
       <div className="px-4 pt-3 pb-2 flex items-start justify-between gap-3 flex-wrap">
         <div>
-          <h3 className="text-lg font-serif text-slate-100">T–{useRho ? 'ρ' : 'Vₘ'} Diyagramı · İzobarlar</h3>
+          <h3 className="text-lg font-semibold text-slate-900">T–{useRho ? 'ρ' : 'Vₘ'} Diyagramı · İzobarlar</h3>
           <p className="text-xs text-slate-500 mt-0.5">
             {isCompare && 'İki model üst üste: sarı = klasik, yeşil = TAĞ-vdW'}
             {isTag && 'Metastabil düzeltme ile: T(Vₘ) = [(P − Δpₘ·Λ) + a/Vₘ²](Vₘ − b)/R'}
@@ -106,17 +106,17 @@ export default function IsobarsView({ params, P, modelMode, axisMode }) {
         </div>
 
         {!isClassic && dev.maxAbs > 0.01 && (
-          <div className="flex items-center gap-3 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/30 rounded font-mono text-[10px]">
+          <div className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 font-mono text-[10px]">
             <div>
               <div className="text-emerald-400/60 uppercase tracking-wider text-[9px]">Max ΔT</div>
-              <div className="text-emerald-300 text-sm tabular-nums">
+              <div className="text-sm tabular-nums text-emerald-700">
                 {dev.signed >= 0 ? '+' : ''}{dev.signed.toFixed(2)} K
               </div>
             </div>
-            <div className="w-px h-7 bg-emerald-500/20" />
+            <div className="h-7 w-px bg-emerald-200" />
             <div>
               <div className="text-emerald-400/60 uppercase tracking-wider text-[9px]">@ {useRho ? 'ρ' : 'Vₘ'}</div>
-              <div className="text-emerald-300 text-sm tabular-nums">
+              <div className="text-sm tabular-nums text-emerald-700">
                 {(useRho ? rhoFromVm(dev.atV, M) : dev.atV).toFixed(useRho ? 1 : 3)} {xUnit}
               </div>
             </div>
@@ -129,7 +129,7 @@ export default function IsobarsView({ params, P, modelMode, axisMode }) {
             <button
               type="button"
               onClick={resetZoom}
-              className="px-2 py-1 rounded border border-slate-700 text-slate-300 hover:border-slate-500 hover:text-slate-100 transition-colors"
+              className="rounded-lg border border-slate-300 px-2 py-1 text-slate-600 transition-colors hover:border-slate-400 hover:text-slate-900"
             >
               Sıfırla
             </button>
@@ -247,12 +247,12 @@ export default function IsobarsView({ params, P, modelMode, axisMode }) {
         </ResponsiveContainer>
       </div>
 
-      <div className="h-24 border-t border-slate-800 px-2 pt-1">
+      <div className="h-24 border-t border-slate-200 px-2 pt-1">
         <div className="flex items-center justify-between px-3 pt-1">
           <span className="text-[10px] uppercase tracking-wider text-slate-500 font-mono">
             ΔT({useRho ? 'ρ' : 'Vₘ'}) = T_TAĞ − T_klasik · metastabilitenin sıcaklık kayması
           </span>
-          <span className="text-[10px] font-mono text-slate-600">
+          <span className="text-[10px] font-mono text-slate-500">
             τ = {params.tau.toFixed(2)} · Λ = {lambda(params.tau).toFixed(4)}
           </span>
         </div>

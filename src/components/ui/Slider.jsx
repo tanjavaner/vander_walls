@@ -1,6 +1,3 @@
-/**
- * Özel Slider — etiket + değer + aralık.
- */
 export default function Slider({
   label,
   value,
@@ -12,18 +9,21 @@ export default function Slider({
   return (
     <div className="space-y-1.5">
       <div className="flex items-baseline justify-between">
-        <label className="text-[11px] uppercase tracking-[0.15em] text-slate-400">{label}</label>
-        <span className="font-mono text-sm text-amber-300 tabular-nums">
+        <label className="text-[11px] uppercase tracking-[0.15em] text-slate-500">{label}</label>
+        <span className="font-mono text-sm tabular-nums text-slate-900">
           {format(value)}
-          <span className="text-slate-500 ml-1 text-xs">{unit}</span>
+          <span className="ml-1 text-xs text-slate-400">{unit}</span>
         </span>
       </div>
       <input
         type="range"
-        min={min} max={max} step={step} value={value}
+        min={min}
+        max={max}
+        step={step}
+        value={value}
         onChange={(e) => onChange(parseFloat(e.target.value))}
-        className="w-full h-1 bg-slate-800 rounded-full appearance-none cursor-pointer"
-        style={{ accentColor: '#fbbf24' }}
+        className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-slate-200"
+        style={{ accentColor: '#0f172a' }}
       />
     </div>
   );

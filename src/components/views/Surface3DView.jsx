@@ -281,12 +281,12 @@ export default function Surface3DView({ params, modelMode }) {
     <div className="h-full flex flex-col">
       <div className="px-4 pt-3 pb-2">
         <div className="flex items-baseline justify-between mb-2 flex-wrap gap-2">
-          <h3 className="text-lg font-serif text-slate-100">
+          <h3 className="text-lg font-semibold text-slate-900">
             3B Yüzey  {AXIS_VARS[axisZ].label.split(' ')[0]}({AXIS_VARS[axisX].label.split(' ')[0]}, {AXIS_VARS[axisY].label.split(' ')[0]})
             <span className={`ml-3 text-xs font-mono px-2 py-0.5 rounded ${
-              isCompareMode ? 'bg-cyan-500/10 text-cyan-300 border border-cyan-500/30'
-                : isTag ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/30'
-                  : 'bg-amber-500/10 text-amber-300 border border-amber-500/30'
+              isCompareMode ? 'border border-cyan-200 bg-cyan-50 text-cyan-700'
+                : isTag ? 'border border-emerald-200 bg-emerald-50 text-emerald-700'
+                  : 'border border-amber-200 bg-amber-50 text-amber-700'
             }`}>
               {isCompareMode ? 'Karşılaştırma (TAĞ)' : isTag ? 'TAĞ-vdW' : 'Klasik vdW'}
             </span>
@@ -306,7 +306,7 @@ export default function Surface3DView({ params, modelMode }) {
               <div key={ax} className="flex items-center gap-1.5">
                 <span className="text-[11px] font-mono font-bold uppercase" style={{ color }}>{ax}:</span>
                 <select value={val} onChange={(e) => setter(e.target.value)}
-                  className="bg-slate-900/60 border border-slate-700 hover:border-slate-500 focus:border-amber-400 focus:outline-none rounded px-2 py-1 text-[11px] font-mono text-slate-100 cursor-pointer">
+                  className="cursor-pointer rounded-lg border border-slate-300 bg-white px-2 py-1 text-[11px] font-mono text-slate-800 hover:border-slate-400 focus:border-slate-900 focus:outline-none">
                   {Object.entries(AXIS_VARS).map(([k, v]) => (
                     <option key={k} value={k}>{v.label}</option>
                   ))}
@@ -318,7 +318,7 @@ export default function Surface3DView({ params, modelMode }) {
             <span className="text-[10px] uppercase tracking-wider text-slate-500 font-mono">Hazır:</span>
             <select
               onChange={(e) => { if (e.target.value !== '') applyAxisPreset(parseInt(e.target.value, 10)); e.target.value = ''; }}
-              className="bg-slate-900/60 border border-slate-700 hover:border-amber-400/60 rounded px-2 py-1 text-[11px] text-slate-300 cursor-pointer">
+              className="cursor-pointer rounded-lg border border-slate-300 bg-white px-2 py-1 text-[11px] text-slate-700 hover:border-slate-400">
               <option value="">Hazır görünümler…</option>
               {AXIS_PRESETS.map((p, i) => (<option key={i} value={i}>{p.name}</option>))}
             </select>
@@ -328,15 +328,15 @@ export default function Surface3DView({ params, modelMode }) {
         <div className="flex flex-wrap gap-3 mt-2 text-[10px] font-mono">
           <div className="flex items-center gap-1.5">
             <span className="w-3 h-0.5" style={{ background: '#60a5fa' }} />
-            <span className="text-blue-300">X = {AXIS_VARS[axisX].label.split('  ')[0]}</span>
+            <span className="text-blue-700">X = {AXIS_VARS[axisX].label.split('  ')[0]}</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-3 h-0.5" style={{ background: '#fbbf24' }} />
-            <span className="text-amber-300">Y = {AXIS_VARS[axisY].label.split('  ')[0]}</span>
+            <span className="text-amber-700">Y = {AXIS_VARS[axisY].label.split('  ')[0]}</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-3 h-0.5" style={{ background: '#10b981' }} />
-            <span className="text-emerald-300">Z = {AXIS_VARS[axisZ].label.split('  ')[0]}</span>
+            <span className="text-emerald-700">Z = {AXIS_VARS[axisZ].label.split('  ')[0]}</span>
           </div>
         </div>
       </div>

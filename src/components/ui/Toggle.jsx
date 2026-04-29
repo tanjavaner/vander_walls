@@ -1,30 +1,28 @@
-/**
- * Segmented Toggle — 2 veya 3 seçenekli yuvarlak buton grubu.
- * Model ve Eksen toggle'larının dayandığı temel bileşen.
- */
 export default function Toggle({ options, value, onChange, sliderColor }) {
-  const idx = options.findIndex((o) => o.value === value);
+  const idx = options.findIndex((option) => option.value === value);
   const count = options.length;
   const widthPct = 100 / count;
 
   return (
-    <div className="relative inline-flex bg-slate-900 border border-slate-700 rounded-full p-0.5">
-      {options.map((opt, i) => (
+    <div className="relative inline-flex rounded-xl border border-slate-200 bg-slate-100 p-1">
+      {options.map((option) => (
         <button
-          key={opt.value}
-          onClick={() => onChange(opt.value)}
-          className={`relative z-10 px-3 py-1 text-xs font-medium rounded-full transition-colors whitespace-nowrap ${
-            value === opt.value ? 'text-slate-950' : 'text-slate-400 hover:text-slate-200'
-          }`}>
-          {opt.label}
+          key={option.value}
+          onClick={() => onChange(option.value)}
+          className={`relative z-10 whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+            value === option.value ? 'text-slate-950' : 'text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          {option.label}
         </button>
       ))}
       <div
-        className="absolute top-0.5 bottom-0.5 rounded-full transition-all duration-300 ease-out"
+        className="absolute bottom-1 top-1 rounded-lg transition-all duration-300 ease-out"
         style={{
-          width: `calc(${widthPct}% - 2px)`,
-          left: `calc(${idx * widthPct}% + 1px)`,
-          background: sliderColor || '#fbbf24',
+          width: `calc(${widthPct}% - 8px)`,
+          left: `calc(${idx * widthPct}% + 4px)`,
+          background: sliderColor || '#0f172a',
+          opacity: 0.18,
         }}
       />
     </div>

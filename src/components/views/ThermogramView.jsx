@@ -111,7 +111,7 @@ export default function ThermogramView({ params }) {
     <div className="h-full flex flex-col">
       <div className="px-4 pt-3 pb-2 flex items-start justify-between gap-3 flex-wrap">
         <div>
-          <h3 className="text-lg font-serif text-slate-100">
+          <h3 className="text-lg font-semibold text-slate-900">
             T–t Termogramı  ·  Sıcaklık–Zaman Eğrisi
             <Pill color="cyan">Deneysel şekil</Pill>
           </h3>
@@ -122,12 +122,12 @@ export default function ThermogramView({ params }) {
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => setAnimating((p) => !p)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 rounded text-xs font-medium">
+            className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-slate-400 hover:text-slate-950">
             {animating ? <Pause size={13} /> : <Play size={13} />}
             {animating ? 'Durdur' : 'Oynat'}
           </button>
           <button onClick={reset}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 rounded text-xs font-medium">
+            className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-slate-400 hover:text-slate-950">
             <RotateCcw size={13} /> Reset
           </button>
         </div>
@@ -135,24 +135,24 @@ export default function ThermogramView({ params }) {
 
       {/* Aşama süreleri paneli */}
       <div className="mx-4 mb-2 grid grid-cols-2 md:grid-cols-4 gap-2 font-mono text-[11px]">
-        <div className="bg-slate-900/50 border border-slate-800 rounded px-3 py-2">
+        <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
           <div className="text-slate-500 uppercase tracking-wider text-[9px]">t₁ (süpersoğuma)</div>
-          <div className="text-amber-300 text-base tabular-nums">{keyPoints.t1.toFixed(1)} s</div>
-          <div className="text-slate-600 text-[9px]">metastabil ömür</div>
+          <div className="text-base tabular-nums text-slate-900">{keyPoints.t1.toFixed(1)} s</div>
+          <div className="text-[9px] text-slate-500">metastabil ömür</div>
         </div>
-        <div className="bg-slate-900/50 border border-slate-800 rounded px-3 py-2">
+        <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
           <div className="text-slate-500 uppercase tracking-wider text-[9px]">t₂ (sıçrama)</div>
           <div className="text-rose-300 text-base tabular-nums">{keyPoints.t2.toFixed(2)} s</div>
-          <div className="text-slate-600 text-[9px]">ani yükseliş</div>
+          <div className="text-[9px] text-slate-500">ani yükseliş</div>
         </div>
-        <div className="bg-slate-900/50 border border-slate-800 rounded px-3 py-2">
+        <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
           <div className="text-slate-500 uppercase tracking-wider text-[9px]">t₃ (donma)</div>
-          <div className="text-cyan-300 text-base tabular-nums">{keyPoints.t3.toFixed(1)} s</div>
-          <div className="text-slate-600 text-[9px]">izotermik</div>
+          <div className="text-base tabular-nums text-slate-900">{keyPoints.t3.toFixed(1)} s</div>
+          <div className="text-[9px] text-slate-500">izotermik</div>
         </div>
-        <div className="bg-emerald-500/10 border border-emerald-500/30 rounded px-3 py-2">
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2">
           <div className="text-emerald-400/60 uppercase tracking-wider text-[9px]">τ tahmini</div>
-          <div className="text-emerald-300 text-base tabular-nums">{tauEstimate.toFixed(3)}</div>
+          <div className="text-base tabular-nums text-emerald-700">{tauEstimate.toFixed(3)}</div>
           <div className="text-emerald-500/60 text-[9px]">deneysel → model</div>
         </div>
       </div>
@@ -225,7 +225,7 @@ export default function ThermogramView({ params }) {
       </div>
 
       {/* Parametre sliderları */}
-      <div className="mx-4 mb-3 mt-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 p-3 bg-slate-900/30 border border-slate-800 rounded">
+      <div className="mx-4 mb-3 mt-1 grid grid-cols-1 gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 sm:grid-cols-2 lg:grid-cols-3">
         <Slider label="T başlangıç" value={Tstart} min={Tfreeze + 20} max={Tfreeze + 200} step={1}
           onChange={setTstart} unit="K" format={(v) => v.toFixed(0)} />
         <Slider label="T donma" value={Tfreeze} min={50} max={600} step={1}
