@@ -27,4 +27,4 @@ This checkout does not include git history, so no repository-specific commit con
 
 ## Agent-Specific Instructions
 
-Before making project changes, check `docs/ARCHITECTURE.md` for file routing and `docs/MODEL_NOTES.md` for equations, units, and numerical assumptions. Do not edit `node_modules/` or generated build output. Keep model changes isolated in `src/physics/` unless UI integration is required. After changing equations or visualization behavior, run `npm run build` before handing off.
+Before making project changes, check `docs/ARCHITECTURE.md` for file routing and `docs/MODEL_NOTES.md` for equations, units, and numerical assumptions. Keep project documentation continuously up to date: when code, equations, constants, assumptions, file routing, or user-facing behavior changes, update the relevant files under `docs/` in the same work session. Do not edit `node_modules/` or generated build output. Keep model changes isolated in `src/physics/` unless UI integration is required. After changing equations or visualization behavior, run `npm run build` before handing off.

@@ -1,61 +1,154 @@
-# Model Notes
+# Bilimsel Model ve Formüller
 
-This document summarizes the equations, units, and implementation boundaries used by the app.
+Bu doküman, uygulamada kullanılan denklemlerin tek doğruluk kaynağıdır.
+Formül değişikliği yapılırsa önce bu dosya güncellenmeli, sonra
+`src/physics/` uygulanmalı ve `VALIDATION.md` kontrolleri çalıştırılmalıdır.
 
-## Core Units
+## Birim Sistemi
 
-- Pressure `p`: atm
-- Temperature `T`: K
-- Molar volume `Vm`: L/mol
-- Density `rho`: g/L
-- Molar mass `M`: g/mol
-- van der Waals constants: `a` in L^2 atm / mol^2, `b` in L/mol
+- Basınç `p`: atm
+- Sıcaklık `T`: K
+- Molar hacim `Vm`: L/mol
+- Yoğunluk `rho`: g/L
+- Molar kütle `M`: g/mol
+- vdW sabiti `a`: L^2 atm / mol^2
+- vdW sabiti `b`: L/mol
+- Gaz sabiti `R`: 0.08206 L atm / (mol K)
 
-## Classic vdW
+## Klasik van der Waals
 
-Implemented in `src/physics/vdw.js`:
+Uygulama dosyası: `src/physics/vdw.js`.
 
 ```text
-p(Vm, T) = RT / (Vm - b) - a / Vm^2
+p(Vm, T) = R T / (Vm - b) - a / Vm^2
 ```
 
-The gas constant is `R = 0.08206`. Values where `Vm <= b` are treated as nonphysical and return `NaN`.
-
-Derived critical values:
+Geçerlilik sınırı:
 
 ```text
-Vc  = 3b
-Tcr = 8a / (27Rb)
-Pcr = a / (27b^2)
+Vm > b
 ```
 
-## TA-vdW Extension
+`Vm <= b` veya sonlu olmayan girdiler fiziksel olmayan durum kabul edilir ve
+`NaN` döndürülür.
 
-Implemented in `src/physics/metastable.js`:
+## Ters İzobar Formu
+
+Sabit basınçta sıcaklık grafiği için kullanılan ters form:
 
 ```text
-p = vdW(Vm, T, a, b) + deltaPm(Vm) * lambda(tau)
+T(Vm, P) = (P + a / Vm^2) (Vm - b) / R
+```
+
+TA-vdW izobarında toplam basınç sabit tutulur. Ek metastabil basınç katkısı
+basınç tarafında çıkarılarak klasik ters forma verilir:
+
+```text
+meta(Vm) = deltaPm(Vm) * lambda(tau)
+T_tag(Vm, P) = ((P - meta(Vm)) + a / Vm^2) (Vm - b) / R
+```
+
+## Kritik Değerler
+
+Uygulama içinde grafikte gösterilen kritik değerler her zaman `a` ve `b`
+değerlerinden türetilir:
+
+```text
+Vc  = 3 b
+Tcr = 8 a / (27 R b)
+Pcr = a / (27 b^2)
+```
+
+Gaz veri tabanında deneysel kritik referanslar `TcrRef` ve `PcrRef` olarak
+saklanabilir, fakat grafiklerde ve hesaplarda kullanılan `Tcr/Pcr` vdW
+modelinin kendi türetilmiş değerleridir. Bu ayrım, `a,b` ile kritik çizgilerin
+birbirine karışmasını önler.
+
+## TA-vdW Metastabil Katkısı
+
+Uygulama dosyası: `src/physics/metastable.js`.
+
+```text
+p_tag(Vm, T) = p_vdw(Vm, T) + deltaPm(Vm) * lambda(tau)
 deltaPm(Vm) = A * exp(-(Vm - V0)^2 / (2 sigma^2))
-lambda(tau) = exp(-1 / tau), tau > 0
+lambda(tau) = exp(-1 / tau), tau > 1e-6
 lambda(tau) = 0, tau <= 1e-6
 ```
 
-The negative exponent in `lambda` is intentional: as `tau -> 0`, the metastable contribution vanishes and the model returns to classic vdW behavior.
+`lambda` üstelinin negatif olması kasıtlıdır. `tau -> 0` limitinde
+`lambda -> 0` olur ve TA-vdW modeli klasik vdW formuna döner.
 
-## Density Conversion
+Bu uygulamadaki `deltaPm` Gauss penceresidir. Deneysel kalibrasyon yapılmadan
+gerçek madde için nicel metastabil basınç düzeltmesi gibi sunulmamalıdır.
 
-Implemented in `src/physics/density.js`:
+## Yoğunluk Dönüşümü
+
+Uygulama dosyası: `src/physics/density.js`.
 
 ```text
 rho = M / Vm
 Vm = M / rho
-rhoCr = M / (3b)
+rhoCr = M / (3 b)
 ```
 
-Use these helpers whenever a view supports both `Vm` and `rho` axes. Do not duplicate conversion math inside components.
+`rho` ekseni kullanılan her görünümde dönüşüm yardımcıları kullanılmalıdır.
+View bileşenlerinde bu matematik yeniden yazılmamalıdır.
 
-## Numerical Notes
+## Spinodal Noktalar
 
-`src/physics/spinodal.js` detects local extrema by sampling, not by solving derivatives analytically. This is suitable for visualization, but tests for new physics behavior should include tolerance-based assertions rather than exact equality.
+Uygulama dosyası: `src/physics/spinodal.js`.
 
-When changing formulas, manually compare all model modes in the UI and run `npm run build`.
+Spinodal koşulu:
+
+```text
+dp/dVm = -R T / (Vm - b)^2 + 2 a / Vm^3 = 0
+```
+
+`T < Tcr` iken iki kök beklenir:
+
+- `Vliq`: küçük hacim tarafı, yerel basınç minimumu `pMin`.
+- `Vgas`: büyük hacim tarafı, yerel basınç maksimumu `pMax`.
+
+Doğru sıra:
+
+```text
+Vliq < Vc < Vgas
+pMin < pMax
+```
+
+Kökler analitik türev koşulundan bisection ile çözülür. Bu nedenle grafik
+örnek sayısı spinodal değerini değiştirmemelidir.
+
+## Sıçrama Modeli
+
+Sıçrama görünümü, spinodal varsa sıvı spinodalındaki basınca yatay bir çizgi
+çeker ve gaz kolunda aynı basınca karşılık gelen molar hacmi çözer:
+
+```text
+p_vdw(Vgas_land, T) = pMin
+Vgas_land > Vgas
+```
+
+`T >= Tcr` için spinodal yoktur; görünüm tek faz olarak davranmalıdır ve
+sıçrama animasyonu çalışmamalıdır.
+
+## T-t Termogram
+
+Uygulama dosyası: `src/physics/thermogram.js`.
+
+Termogram beş parçadan oluşur:
+
+- `ab`: sıvı soğuması, doğrusal düşüş.
+- `bc`: aşırı soğuma, `Tfreeze` değerinden `Tmin = Tfreeze - deltaT` değerine iniş.
+- `cd`: gizli ısı açığa çıkışı, normalize sigmoid ile `Tmin -> Tfreeze`.
+- `de`: izotermik donma, `T = Tfreeze`.
+- `ef`: katı faz soğuması.
+
+`cd` segmenti uç noktalarda `Tmin` ve `Tfreeze` ile tutarlı olmalıdır.
+
+## Kapsam Dışı
+
+- Maxwell eş alan inşası şu anda uygulanmıyor.
+- Gerçek madde faz dengesi için kalibre edilmiş bir EOS iddiası yoktur.
+- `tau(P,T)` fonksiyonu deneysel model olarak kalibre edilmemiştir; arayüzdeki
+  `tau` boyutsuz görselleştirme parametresidir.

@@ -23,7 +23,7 @@
  * @returns {number} yoğunluk (g/L)
  */
 export function rhoFromVm(Vm, M) {
-  if (Vm <= 0) return NaN;
+  if (![Vm, M].every(Number.isFinite) || Vm <= 0 || M <= 0) return NaN;
   return M / Vm;
 }
 
@@ -31,7 +31,7 @@ export function rhoFromVm(Vm, M) {
  * Yoğunluktan molyar hacme dönüşüm.
  */
 export function vmFromRho(rho, M) {
-  if (rho <= 0) return NaN;
+  if (![rho, M].every(Number.isFinite) || rho <= 0 || M <= 0) return NaN;
   return M / rho;
 }
 
@@ -39,5 +39,6 @@ export function vmFromRho(rho, M) {
  * Kritik yoğunluk ρcr = M/(3b).
  */
 export function criticalDensity(b, M) {
+  if (![b, M].every(Number.isFinite) || b <= 0 || M <= 0) return NaN;
   return M / (3 * b);
 }

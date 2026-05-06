@@ -2,14 +2,15 @@
  * Gaz Veritabanı
  * ==============
  *
- * 28 yaygın gaz için vdW sabitleri (a, b), kritik noktalar (Tcr, Pcr) ve
- * molyar kütleler (M) — CRC Handbook of Chemistry and Physics referansından.
+ * 28 yaygın gaz için vdW sabitleri (a, b), kritik nokta referansları
+ * (Tcr, Pcr) ve molyar kütleler (M) — CRC Handbook of Chemistry and Physics
+ * referansından.
  *
  * Birimler:
  *   a   [L²·atm/mol²]
  *   b   [L/mol]
- *   Tcr [K]
- *   Pcr [atm]
+ *   Tcr [K]     deneysel referans; uygulama içindeki vdW kritik değeri a,b'den türetilir
+ *   Pcr [atm]   deneysel referans; uygulama içindeki vdW kritik değeri a,b'den türetilir
  *   M   [g/mol]
  *
  * Donma sıcaklığı Tfreeze — T-t termogramı için kullanılır (1 atm'de, K).
@@ -67,6 +68,8 @@ export function deriveBounds(a, b) {
   const Pcr_calc = criticalPressure(a, b);
 
   return {
+    Tcr: Tcr_calc,
+    Pcr: Pcr_calc,
     Vmin: b * 1.05,
     Vmax: Vc * 10,
     Tmin: Tcr_calc * 0.3,
@@ -83,7 +86,12 @@ export function deriveBounds(a, b) {
 
 /** Bir gaz girişine grafik sınırlarını ekler. */
 export function expandPreset(gas) {
-  return { ...gas, ...deriveBounds(gas.a, gas.b) };
+  return {
+    ...gas,
+    TcrRef: gas.Tcr,
+    PcrRef: gas.Pcr,
+    ...deriveBounds(gas.a, gas.b),
+  };
 }
 
 /** Tüm presetler, sınırları türetilmiş. */

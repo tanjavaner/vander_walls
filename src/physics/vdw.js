@@ -28,6 +28,7 @@ import { R } from './constants.js';
  * @returns {number} basınç (atm) — fiziksel olmayan durumda NaN
  */
 export function vdw(Vm, T, a, b) {
+  if (![Vm, T, a, b].every(Number.isFinite)) return NaN;
   if (Vm <= b) return NaN; // Vₘ ≤ b fiziksel değil (moleküller üst üste)
   return (R * T) / (Vm - b) - a / (Vm * Vm);
 }
@@ -37,6 +38,7 @@ export function vdw(Vm, T, a, b) {
  * Formül:  T = (P + a/Vₘ²)(Vₘ - b) / R
  */
 export function tAtP(Vm, P, a, b) {
+  if (![Vm, P, a, b].every(Number.isFinite)) return NaN;
   if (Vm <= b) return NaN;
   return ((P + a / (Vm * Vm)) * (Vm - b)) / R;
 }
@@ -45,6 +47,7 @@ export function tAtP(Vm, P, a, b) {
  * Kritik sıcaklık (a, b'den türetilmiş).
  */
 export function criticalTemperature(a, b) {
+  if (![a, b].every(Number.isFinite) || a <= 0 || b <= 0) return NaN;
   return (8 * a) / (27 * R * b);
 }
 
@@ -52,6 +55,7 @@ export function criticalTemperature(a, b) {
  * Kritik basınç (a, b'den türetilmiş).
  */
 export function criticalPressure(a, b) {
+  if (![a, b].every(Number.isFinite) || a <= 0 || b <= 0) return NaN;
   return a / (27 * b * b);
 }
 
@@ -59,5 +63,6 @@ export function criticalPressure(a, b) {
  * Kritik molyar hacim.
  */
 export function criticalVolume(b) {
+  if (!Number.isFinite(b) || b <= 0) return NaN;
   return 3 * b;
 }

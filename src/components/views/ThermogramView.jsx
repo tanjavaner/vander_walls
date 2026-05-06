@@ -25,6 +25,7 @@ import Slider from '../ui/Slider.jsx';
 import Pill from '../ui/Pill.jsx';
 import { generateThermogram, estimateTauFromExperiment } from '../../physics/thermogram.js';
 import { exportCsv, exportPngFromElement, exportSvgFromElement } from '../../utils/exportChart.js';
+import ChartTooltip from '../ui/ChartTooltip.jsx';
 import ExportMenu from '../ui/ExportMenu.jsx';
 
 export default function ThermogramView({ params }) {
@@ -185,9 +186,16 @@ export default function ThermogramView({ params }) {
               stroke="#64748b" tick={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace' }}
               label={{ value: 'T  [K]', angle: -90, position: 'insideLeft', fill: '#94a3b8', fontSize: 11 }} />
             <Tooltip
-              contentStyle={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 6, fontSize: 11, fontFamily: 'JetBrains Mono, monospace' }}
-              labelFormatter={(v) => `t = ${Number(v).toFixed(1)} s`}
-              formatter={(val) => [Number(val).toFixed(2) + ' K', 'T']} />
+              content={
+                <ChartTooltip
+                  xLabel="t"
+                  xUnit="s"
+                  xDecimals={1}
+                  valueUnit="K"
+                  valueDecimals={2}
+                />
+              }
+            />
             <Legend wrapperStyle={{ fontSize: 10, paddingTop: 8 }} />
 
             {/* Referans çizgiler */}

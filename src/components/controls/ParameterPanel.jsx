@@ -28,9 +28,9 @@ export default function ParameterPanel({
 
       <div className="space-y-3">
         <div className="font-mono text-[10px] uppercase tracking-wider text-slate-400">Metastabil katkı</div>
-        <Slider label="A (amplitüd)" value={params.A} min={0} max={10} step={0.01} onChange={update('A')} unit="atm" format={(v) => v.toFixed(2)} />
+        <Slider label="A (amplitüd)" value={params.A} min={0} max={Math.max(10, params.Pcr * 0.2, params.A * 1.2)} step={0.01} onChange={update('A')} unit="atm" format={(v) => v.toFixed(2)} />
         <Slider label="V₀ (merkez)" value={params.V0} min={params.Vmin} max={params.Vmax} step={0.001} onChange={update('V0')} unit="L/mol" format={(v) => v.toFixed(3)} />
-        <Slider label="σ (genişlik)" value={params.sigma} min={0.002} max={0.1} step={0.0005} onChange={update('sigma')} unit="L/mol" format={(v) => v.toFixed(3)} />
+        <Slider label="σ (genişlik)" value={params.sigma} min={0.002} max={Math.max(0.1, params.sigma * 1.5)} step={0.0005} onChange={update('sigma')} unit="L/mol" format={(v) => v.toFixed(3)} />
         <Slider label="τ (ömür)" value={params.tau} min={0.05} max={10} step={0.01} onChange={update('tau')} unit="—" format={(v) => v.toFixed(2)} />
       </div>
 

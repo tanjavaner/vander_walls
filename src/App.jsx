@@ -51,7 +51,7 @@ export default function App() {
             <span className="text-slate-500"> − </span>
             <span>a/Vₘ²</span>
             <span className="text-slate-500"> + </span>
-            <span>Δpₘ(Vₘ,T)</span>
+            <span>Δpₘ(Vₘ)</span>
             <span className="text-slate-500"> · </span>
             <span>exp(−1/τ(P,T))</span>
           </div>

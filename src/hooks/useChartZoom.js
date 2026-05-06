@@ -83,6 +83,20 @@ export function useChartZoom(data, xKey) {
     clearSelection();
   };
 
+  const setClampedZoom = (nextDomain) => {
+    const [lo, hi] = normalizeRange(nextDomain[0], nextDomain[1]);
+    const nextLo = Math.max(lo, fullXDomain[0]);
+    const nextHi = Math.min(hi, fullXDomain[1]);
+
+    if (nextHi - nextLo <= minSpan) return;
+    if (nextLo <= fullXDomain[0] && nextHi >= fullXDomain[1]) {
+      setZoomXDomain(null);
+      return;
+    }
+
+    setZoomXDomain([nextLo, nextHi]);
+  };
+
   const onMouseDown = (event) => {
     const value = getActiveXValue(event, xKey);
     if (!Number.isFinite(value)) return;
@@ -91,9 +105,9 @@ export function useChartZoom(data, xKey) {
   };
 
   const onMouseMove = (event) => {
-    if (!Number.isFinite(dragStart)) return;
     const value = getActiveXValue(event, xKey);
     if (!Number.isFinite(value)) return;
+    if (!Number.isFinite(dragStart)) return;
     setDragEnd(value);
   };
 
@@ -106,7 +120,7 @@ export function useChartZoom(data, xKey) {
     const [lo, hi] = selectionDomain;
     clearSelection();
     if (hi - lo <= minSpan) return;
-    setZoomXDomain([lo, hi]);
+    setClampedZoom([lo, hi]);
   };
 
   return {

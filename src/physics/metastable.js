@@ -31,6 +31,7 @@ import { vdw } from './vdw.js';
  * @param {number} sigma - genişlik (L/mol)
  */
 export function deltaPm(Vm, A, V0, sigma) {
+  if (![Vm, A, V0, sigma].every(Number.isFinite) || sigma <= 0) return NaN;
   const d = Vm - V0;
   return A * Math.exp(-(d * d) / (2 * sigma * sigma));
 }
@@ -47,7 +48,7 @@ export function deltaPm(Vm, A, V0, sigma) {
  * @param {number} tau - metastabil ömür (birimsiz)
  */
 export function lambda(tau) {
-  if (tau <= 1e-6) return 0;
+  if (!Number.isFinite(tau) || tau <= 1e-6) return 0;
   return Math.exp(-1 / tau);
 }
 

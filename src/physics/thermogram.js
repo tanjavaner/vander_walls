@@ -62,6 +62,7 @@ export function generateThermogram(p) {
     nPoints = 500,
   } = p;
 
+  const count = Math.max(2, Math.floor(nPoints));
   const Tmin = Tfreeze - deltaT; // en düşük sıcaklık (c noktası)
 
   // (ab) sıvı soğuması: Tstart → Tfreeze
@@ -76,8 +77,8 @@ export function generateThermogram(p) {
   const tTotal = tAB + t1 + t2 + t3 + t4;
 
   const data = [];
-  for (let i = 0; i < nPoints; i++) {
-    const t = (i / (nPoints - 1)) * tTotal;
+  for (let i = 0; i < count; i++) {
+    const t = (i / (count - 1)) * tTotal;
     let T;
     let phase;
 
@@ -95,7 +96,7 @@ export function generateThermogram(p) {
       // cd: ani sıçrama (yukarı, gizli ısı açığa çıkar)
       const u = (t - tAB - t1) / t2;
       // Hızlı sigmoid ile sıçrama
-      T = Tmin + deltaT * sigmoid(u * 6 - 3);
+      T = Tmin + deltaT * normalizedSigmoid(u);
       phase = 'cd';
     } else if (t < tAB + t1 + t2 + t3) {
       // de: izotermik donma — T sabit = Tfreeze
@@ -131,6 +132,12 @@ function sigmoid(x) {
   return 1 / (1 + Math.exp(-x));
 }
 
+function normalizedSigmoid(u) {
+  const s0 = sigmoid(-3);
+  const s1 = sigmoid(3);
+  return (sigmoid(u * 6 - 3) - s0) / (s1 - s0);
+}
+
 /**
  * Termogram ile TAĞ modelini matematiksel olarak birleştir.
  *
@@ -141,5 +148,6 @@ function sigmoid(x) {
  * Model: τ ≈ t₁ / tref  (tref bir referans zaman — standart 1 saniye)
  */
 export function estimateTauFromExperiment(t1, tref = 1.0) {
+  if (![t1, tref].every(Number.isFinite) || tref <= 0) return NaN;
   return t1 / tref;
 }

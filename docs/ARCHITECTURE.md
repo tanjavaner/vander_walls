@@ -1,43 +1,89 @@
-# Architecture Map
+# Mimari ve Dosya Yönlendirme
 
-This document is a quick routing guide for contributors and coding agents.
+Bu doküman, kodda değişiklik yaparken hangi dosyaya gidileceğini gösterir.
+Bilimsel formüller için `MODEL_NOTES.md`, veri/preset kuralları için
+`DATA_GUIDE.md`, teslim öncesi kontroller için `VALIDATION.md` kullanılmalıdır.
 
-## Runtime Stack
+## Çalışma Yığını
 
-- Vite serves and bundles the app.
-- React owns state, layout, controls, and tab selection.
-- Tailwind classes handle most styling.
-- Recharts renders 2D charts.
-- Three.js renders the 3D surface view.
-- `lucide-react` provides interface icons.
+- Vite uygulamayı geliştirir ve paketler.
+- React state, layout, kontroller ve sekme seçimini yönetir.
+- Tailwind ana stil sistemi olarak kullanılır.
+- Recharts 2B grafikleri çizer.
+- Three.js 3B yüzey görünümünü üretir.
+- `lucide-react` arayüz ikonlarını sağlar.
 
-## Data Flow
+## Kaynak Ağacı
 
-`src/main.jsx` mounts `App`. `src/App.jsx` creates app-level UI state:
+```text
+src/
+  main.jsx                    React giriş noktası
+  App.jsx                     Uygulama iskeleti, sekmeler, model/eksen modu
+  index.css                   Tailwind ve global stiller
 
-- selected tab: `iso`, `isobar`, `3d`, `jump`, `thermo`
-- model mode: classic, compare, or TA-vdW
-- axis mode: molar volume `Vm` or density `rho`
+  physics/                    Saf model ve matematik fonksiyonları
+    constants.js              R sabiti
+    vdw.js                    Klasik vdW, ters T(P,Vm), kritik değerler
+    metastable.js             deltaPm, lambda, TA-vdW basıncı
+    density.js                Vm-rho dönüşümleri
+    spinodal.js               Spinodal kökleri ve sapma hesabı
+    thermogram.js             T-t termogram üretimi
 
-Domain parameters come from `src/hooks/useParams.js`. That hook loads presets from `src/data/gases.js`, tracks the current temperature and pressure, and recalculates critical values when `a` or `b` changes.
+  data/
+    gases.js                  Gaz presetleri ve türetilmiş sınırlar
+    axisPresets.js            3B eksen değişkenleri ve hazır görünümler
 
-## Main Editing Paths
+  hooks/
+    useParams.js              Parametre state'i ve preset seçimi
+    useChartZoom.js           2B grafik yakınlaştırma
+    useAnimation.js           Genel requestAnimationFrame döngüsü
 
-- Add or adjust a gas: edit `src/data/gases.js`.
-- Add a parameter control: update `src/components/controls/ParameterPanel.jsx` and, if needed, `useParams.js`.
-- Change pure formulas: edit `src/physics/`.
-- Add a 2D view: create a component in `src/components/views/`, then add a tab and conditional render in `App.jsx`.
-- Add a 3D axis preset: update `src/data/axisPresets.js`.
-- Change reusable UI styling: prefer `src/components/ui/` before adding global CSS.
+  components/
+    controls/                 Sol panel ve model/gaz seçim kontrolleri
+    ui/                       Tekrar kullanılabilir arayüz parçaları
+    views/                    Beş ana görselleştirme sekmesi
 
-## View Responsibilities
+  utils/
+    format.js                 linspace, formatTick, clamp
+    exportChart.js            PNG, SVG, CSV dışa aktarma
+```
 
-- `IsothermsView.jsx`: pressure-volume curves at fixed temperature.
-- `IsobarsView.jsx`: temperature-volume curves at fixed pressure.
-- `Surface3DView.jsx`: configurable Three.js surface.
-- `JumpAnimationView.jsx`: tau-to-zero transition animation.
-- `ThermogramView.jsx`: time-temperature thermogram model.
+## Veri Akışı
 
-## Design Constraints
+`src/main.jsx`, `App` bileşenini bağlar. `src/App.jsx` şu üst seviye state'i
+tutar:
 
-Keep `src/physics/` independent of React and DOM APIs. Views should prepare render data but avoid owning equation logic. Shared formatting, clamping, and sampling helpers belong in `src/utils/format.js`.
+- `tab`: `iso`, `isobar`, `3d`, `jump`, `thermo`
+- `modelMode`: `classic`, `compare`, `tag`
+- `axisMode`: `Vm`, `rho`
+
+Alan parametreleri `src/hooks/useParams.js` içinden gelir. Bu hook:
+
+- presetleri `src/data/gases.js` dosyasından yükler,
+- seçili sıcaklık `T` ve basınç `P` değerlerini tutar,
+- `a` veya `b` değiştiğinde `Tcr` ve `Pcr` değerlerini vdW formülleriyle yeniden hesaplar,
+- özel madde moduna geçişi yönetir.
+
+## Değişiklik Rotaları
+
+- Yeni gaz eklemek veya preset düzeltmek: `src/data/gases.js`.
+- Yeni parametre kontrolü eklemek: `src/components/controls/ParameterPanel.jsx` ve gerekirse `src/hooks/useParams.js`.
+- Formül veya sayısal hesap değiştirmek: yalnızca `src/physics/` içinde başlat.
+- 2B grafik davranışı değiştirmek: ilgili `src/components/views/*View.jsx`.
+- 3B eksen seçeneği eklemek: `src/data/axisPresets.js`.
+- Ortak UI parçası eklemek: önce `src/components/ui/`.
+
+## Görünüm Sorumlulukları
+
+- `IsothermsView.jsx`: sabit sıcaklıkta `p-Vm` veya `p-rho`.
+- `IsobarsView.jsx`: sabit basınçta `T-Vm` veya `T-rho`.
+- `Surface3DView.jsx`: seçilebilir eksenli 3B model yüzeyi.
+- `JumpAnimationView.jsx`: spinodal ve aynı basınçta gaz koluna sıçrama.
+- `ThermogramView.jsx`: zaman-sıcaklık termogram modeli.
+
+## Sınırlar
+
+- `src/physics/` React, DOM veya grafik kütüphanesi import etmemelidir.
+- Formül tekrarları view bileşenlerine kopyalanmamalıdır.
+- Yoğunluk dönüşümü gereken her yerde `src/physics/density.js` kullanılmalıdır.
+- Grafik bileşenleri render verisini hazırlayabilir; model denkleminin sahibi olmamalıdır.

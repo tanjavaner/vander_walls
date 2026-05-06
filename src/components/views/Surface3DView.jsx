@@ -135,7 +135,7 @@ export default function Surface3DView({ params, modelMode }) {
       positions.setZ(idx, wz);
 
       const zN = (clamp(z, zR.lo, zR.hi) - zR.lo) / (zR.hi - zR.lo);
-      const zCritVal = axisZ === 'p' ? Pcr : null;
+      const zCritVal = axisZ === 'p' && !isTag ? Pcr : null;
       const distToCr = zCritVal !== null ? Math.abs(z - zCritVal) / (zR.hi - zR.lo) : 1;
       let r, g, bc;
       if (distToCr < 0.04) { r = 0.94; g = 0.27; bc = 0.27; }
@@ -221,7 +221,7 @@ export default function Surface3DView({ params, modelMode }) {
     addTicks(xR, 'x'); addTicks(yR, 'y'); addTicks(zR, 'z');
 
     // Kritik nokta
-    if (axisZ === 'p') {
+    if (axisZ === 'p' && !isTag) {
       const Vc = 3 * b;
       const cxv = computeVar(axisX, Vc, Tcr, params, isTag);
       const cyv = computeVar(axisY, Vc, Tcr, params, isTag);
@@ -254,12 +254,6 @@ export default function Surface3DView({ params, modelMode }) {
       prevX = cx; prevY = cy;
     };
     const onUp = () => { isDragging = false; };
-    let zoom = 1;
-    const onWheel = (e) => {
-      e.preventDefault();
-      zoom *= e.deltaY > 0 ? 1.05 : 0.95;
-      zoom = Math.max(0.5, Math.min(2.5, zoom));
-    };
 
     const dom = renderer.domElement;
     dom.addEventListener('mousedown', onDown);
@@ -269,12 +263,11 @@ export default function Surface3DView({ params, modelMode }) {
     dom.addEventListener('touchstart', onDown);
     dom.addEventListener('touchmove', onMove);
     dom.addEventListener('touchend', onUp);
-    dom.addEventListener('wheel', onWheel, { passive: false });
 
     let animId;
     const animate = () => {
       animId = requestAnimationFrame(animate);
-      const r = 5 * zoom;
+      const r = 5;
       camera.position.x = r * Math.sin(rotY) * Math.cos(rotX);
       camera.position.y = r * Math.sin(rotX) + 0.4;
       camera.position.z = r * Math.cos(rotY) * Math.cos(rotX);
@@ -301,7 +294,6 @@ export default function Surface3DView({ params, modelMode }) {
       dom.removeEventListener('touchstart', onDown);
       dom.removeEventListener('touchmove', onMove);
       dom.removeEventListener('touchend', onUp);
-      dom.removeEventListener('wheel', onWheel);
       geometry.dispose();
       wireGeo.dispose();
       material.dispose();
@@ -326,7 +318,7 @@ export default function Surface3DView({ params, modelMode }) {
             </span>
           </h3>
           <div className="text-[10px] font-mono text-slate-500">
-            döndür: sürükle · yakınlaştır: tekerlek
+            döndür: sürükle
           </div>
           <ExportMenu
             allowSvg={false}

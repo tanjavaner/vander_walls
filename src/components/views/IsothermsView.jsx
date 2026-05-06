@@ -16,8 +16,9 @@ import { deltaPm, lambda } from '../../physics/metastable.js';
 import { rhoFromVm } from '../../physics/density.js';
 import { findSpinodal, maxDeviation } from '../../physics/spinodal.js';
 import { useChartZoom } from '../../hooks/useChartZoom.js';
-import { linspace } from '../../utils/format.js';
+import { formatCompactTick, linspace } from '../../utils/format.js';
 import { exportCsv, exportPngFromElement, exportSvgFromElement } from '../../utils/exportChart.js';
+import ChartTooltip from '../ui/ChartTooltip.jsx';
 import ExportMenu from '../ui/ExportMenu.jsx';
 
 export default function IsothermsView({ params, T, modelMode, axisMode }) {
@@ -55,7 +56,12 @@ export default function IsothermsView({ params, T, modelMode, axisMode }) {
   );
 
   const deviation = useMemo(() => maxDeviation(T, params), [params, T]);
-  const { xDomain, visibleData, selectionDomain, isZoomed, resetZoom, chartHandlers } = useChartZoom(data, xKey);
+  const {
+    xDomain,
+    visibleData,
+    selectionDomain,
+    chartHandlers,
+  } = useChartZoom(data, xKey);
   const zoomedData = visibleData.length ? visibleData : data;
 
   const yDomain = useMemo(() => {
@@ -125,21 +131,12 @@ export default function IsothermsView({ params, T, modelMode, axisMode }) {
         )}
 
         <div className="ml-auto flex items-center gap-2 text-[10px] font-mono text-slate-500">
-          <span>yakınlaştır: grafikte sürükle</span>
+          <span>yakınlaştır: aralık seçmek için sürükle · sıfırla: çift tık</span>
           <ExportMenu
             onPng={() => exportPngFromElement(chartRef.current, `${fileBase}.png`)}
             onSvg={() => exportSvgFromElement(chartRef.current, `${fileBase}.svg`)}
             onCsv={() => exportCsv(data, csvColumns, `${fileBase}.csv`)}
           />
-          {isZoomed && (
-            <button
-              type="button"
-              onClick={resetZoom}
-              className="rounded-lg border border-slate-300 px-2 py-1 text-slate-600 transition-colors hover:border-slate-400 hover:text-slate-900"
-            >
-              Sıfırla
-            </button>
-          )}
         </div>
       </div>
 
@@ -160,13 +157,22 @@ export default function IsothermsView({ params, T, modelMode, axisMode }) {
             <YAxis
               domain={yDomain}
               allowDataOverflow
+              width={58}
+              tickFormatter={formatCompactTick}
               stroke="#64748b"
               tick={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace' }}
               label={{ value: 'p  [atm]', angle: -90, position: 'insideLeft', fill: '#94a3b8', fontSize: 11 }}
             />
             <Tooltip
-              contentStyle={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 6, fontSize: 11, fontFamily: 'JetBrains Mono, monospace' }}
-              labelFormatter={(v) => `${useRho ? 'ρ' : 'Vₘ'} = ${Number(v).toFixed(useRho ? 1 : 3)} ${xUnit}`}
+              content={
+                <ChartTooltip
+                  xLabel={useRho ? 'ρ' : 'Vₘ'}
+                  xUnit={xUnit}
+                  xDecimals={useRho ? 1 : 3}
+                  valueUnit="atm"
+                  valueDecimals={2}
+                />
+              }
             />
             <Legend wrapperStyle={{ fontSize: 10, paddingTop: 8 }} />
 
@@ -181,7 +187,7 @@ export default function IsothermsView({ params, T, modelMode, axisMode }) {
                 stroke="#f59e0b"
                 strokeOpacity={0.25}
                 strokeDasharray="2 2"
-                label={{ value: 'S-bölgesi (metastabil)', fill: '#fbbf24', fontSize: 10, position: 'insideTop' }}
+                label={{ value: 'Spinodal aralığı', fill: '#fbbf24', fontSize: 10, position: 'insideTop' }}
               />
             )}
 
@@ -272,7 +278,7 @@ export default function IsothermsView({ params, T, modelMode, axisMode }) {
       <div className="h-24 border-t border-slate-200 px-2 pt-1">
         <div className="flex items-center justify-between px-3 pt-1">
           <span className="text-[10px] uppercase tracking-wider text-slate-500 font-mono">
-            Δp({useRho ? 'ρ' : 'Vₘ'}) = TAĞ − klasik · metastabil katkının profili
+            Δp({useRho ? 'ρ' : 'Vₘ'}) = p_TAĞ − p_klasik = metastabil katkı
           </span>
           <span className="text-[10px] font-mono text-slate-500">
             τ = {params.tau.toFixed(2)} · Λ = {lambda(params.tau).toFixed(4)}
@@ -295,13 +301,18 @@ export default function IsothermsView({ params, T, modelMode, axisMode }) {
               allowDataOverflow
               stroke="#475569"
               tick={{ fontSize: 9, fontFamily: 'JetBrains Mono, monospace' }}
-              width={40}
-              tickFormatter={(v) => v.toFixed(1)}
+              width={52}
+              tickFormatter={formatCompactTick}
             />
             <Tooltip
-              contentStyle={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 6, fontSize: 10, fontFamily: 'JetBrains Mono, monospace' }}
-              labelFormatter={(v) => `${useRho ? 'ρ' : 'Vₘ'} = ${Number(v).toFixed(useRho ? 1 : 3)}`}
-              formatter={(val) => [Number(val).toFixed(3) + ' atm', 'Δp']}
+              content={
+                <ChartTooltip
+                  xLabel={useRho ? 'ρ' : 'Vₘ'}
+                  xUnit={xUnit}
+                  xDecimals={useRho ? 1 : 3}
+                  valueFormatter={(val) => [`${Number(val).toFixed(3)} atm`, 'Δp']}
+                />
+              }
             />
             <ReferenceLine y={0} stroke="#475569" />
             <Area
