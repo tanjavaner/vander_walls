@@ -24,6 +24,8 @@ import {
 import Slider from '../ui/Slider.jsx';
 import Pill from '../ui/Pill.jsx';
 import { generateThermogram, estimateTauFromExperiment } from '../../physics/thermogram.js';
+import { exportCsv, exportPngFromElement, exportSvgFromElement } from '../../utils/exportChart.js';
+import ExportMenu from '../ui/ExportMenu.jsx';
 
 export default function ThermogramView({ params }) {
   // Her madde için varsayılan donma noktası gelir; kullanıcı ince ayar yapabilir
@@ -48,6 +50,7 @@ export default function ThermogramView({ params }) {
   const [animTime, setAnimTime] = useState(0); // 0..1 arası (tüm eğride hangi noktadayız)
   const rafRef = useRef();
   const lastTickRef = useRef(Date.now());
+  const chartRef = useRef(null);
 
   const thermo = useMemo(
     () => generateThermogram({
@@ -106,6 +109,12 @@ export default function ThermogramView({ params }) {
 
   const Tmin = Tfreeze - deltaT;
   const yDomain = [Tmin - 10, Tstart + 5];
+  const fileBase = `thermogram-Tfreeze${Tfreeze.toFixed(1)}K-delta${deltaT.toFixed(1)}K`;
+  const csvColumns = [
+    { key: 't', label: 'time_s' },
+    { key: 'T', label: 'temperature_K' },
+    { key: 'phase', label: 'phase' },
+  ];
 
   return (
     <div className="h-full flex flex-col">
@@ -121,6 +130,11 @@ export default function ThermogramView({ params }) {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <ExportMenu
+            onPng={() => exportPngFromElement(chartRef.current, `${fileBase}.png`)}
+            onSvg={() => exportSvgFromElement(chartRef.current, `${fileBase}.svg`)}
+            onCsv={() => exportCsv(data, csvColumns, `${fileBase}.csv`)}
+          />
           <button onClick={() => setAnimating((p) => !p)}
             className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-slate-400 hover:text-slate-950">
             {animating ? <Pause size={13} /> : <Play size={13} />}
@@ -158,7 +172,7 @@ export default function ThermogramView({ params }) {
       </div>
 
       {/* Ana grafik */}
-      <div className="flex-1 min-h-0 px-2">
+      <div ref={chartRef} className="flex-1 min-h-0 px-2">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={animTime > 0 ? visibleData : data}
             margin={{ top: 10, right: 30, left: 10, bottom: 25 }}>

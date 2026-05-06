@@ -4,10 +4,12 @@
  * Three.js ile kuşbakışı dönebilen yüzey. X, Y, Z eksenleri değiştirilebilir.
  * Eksen uçlarında canvas sprite etiketleri, tick değerleri ve renkli çizgiler.
  */
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { AXIS_VARS, AXIS_PRESETS, computeVar } from '../../data/axisPresets.js';
 import { formatTick, clamp } from '../../utils/format.js';
+import { exportCanvasPng, exportCsv } from '../../utils/exportChart.js';
+import ExportMenu from '../ui/ExportMenu.jsx';
 
 export default function Surface3DView({ params, modelMode }) {
   const mountRef = useRef(null);
@@ -17,6 +19,38 @@ export default function Surface3DView({ params, modelMode }) {
   const [axisX, setAxisX] = useState('Vm');
   const [axisY, setAxisY] = useState('T');
   const [axisZ, setAxisZ] = useState('p');
+
+  const surfaceRows = useMemo(() => {
+    const rows = [];
+    const { b, Vmin, Vmax, Tmin, Tmax } = params;
+    const Vlo = Math.max(Vmin, b * 1.05);
+    const steps = 60;
+
+    for (let i = 0; i <= steps; i++) {
+      for (let j = 0; j <= steps; j++) {
+        const Vm = Vlo + (Vmax - Vlo) * (i / steps);
+        const T = Tmin + (Tmax - Tmin) * (j / steps);
+        rows.push({
+          Vm,
+          T,
+          x: computeVar(axisX, Vm, T, params, isTag),
+          y: computeVar(axisY, Vm, T, params, isTag),
+          z: computeVar(axisZ, Vm, T, params, isTag),
+        });
+      }
+    }
+
+    return rows;
+  }, [axisX, axisY, axisZ, isTag, params]);
+
+  const fileBase = `surface3d-${modelMode}-${axisX}-${axisY}-${axisZ}`;
+  const csvColumns = [
+    { key: 'Vm', label: 'Vm_L_per_mol' },
+    { key: 'T', label: 'T_K' },
+    { key: 'x', label: `${axisX}_${AXIS_VARS[axisX].unit}` },
+    { key: 'y', label: `${axisY}_${AXIS_VARS[axisY].unit}` },
+    { key: 'z', label: `${axisZ}_${AXIS_VARS[axisZ].unit}` },
+  ];
 
   const applyAxisPreset = (idx) => {
     const p = AXIS_PRESETS[idx];
@@ -38,7 +72,7 @@ export default function Surface3DView({ params, modelMode }) {
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
     camera.position.set(3.2, 2.5, 3.2);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(width, height);
     mount.appendChild(renderer.domElement);
@@ -294,6 +328,11 @@ export default function Surface3DView({ params, modelMode }) {
           <div className="text-[10px] font-mono text-slate-500">
             döndür: sürükle · yakınlaştır: tekerlek
           </div>
+          <ExportMenu
+            allowSvg={false}
+            onPng={() => exportCanvasPng(mountRef.current?.querySelector('canvas'), `${fileBase}.png`)}
+            onCsv={() => exportCsv(surfaceRows, csvColumns, `${fileBase}.csv`)}
+          />
         </div>
 
         {/* Eksen seçici */}

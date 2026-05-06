@@ -5,7 +5,7 @@
  * Seçili izoterm compare modunda iki eğri halinde gösterilir.
  * Altında Δp(Vₘ) profil grafiği yer alır.
  */
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import {
   Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ResponsiveContainer, ReferenceLine, ReferenceArea, Area, ComposedChart,
@@ -17,8 +17,11 @@ import { rhoFromVm } from '../../physics/density.js';
 import { findSpinodal, maxDeviation } from '../../physics/spinodal.js';
 import { useChartZoom } from '../../hooks/useChartZoom.js';
 import { linspace } from '../../utils/format.js';
+import { exportCsv, exportPngFromElement, exportSvgFromElement } from '../../utils/exportChart.js';
+import ExportMenu from '../ui/ExportMenu.jsx';
 
 export default function IsothermsView({ params, T, modelMode, axisMode }) {
+  const chartRef = useRef(null);
   const { a, b, Tcr, Vmin, Vmax, M } = params;
   const isTag = modelMode === 'tag';
   const isCompare = modelMode === 'compare';
@@ -79,6 +82,17 @@ export default function IsothermsView({ params, T, modelMode, axisMode }) {
   const mainKey = isTag ? 'pTag' : 'pClassic';
   const mainColor = isTag ? '#10b981' : '#fbbf24';
   const mainLabel = isTag ? `TAĞ-vdW @ T=${T.toFixed(0)}K` : `Klasik vdW @ T=${T.toFixed(0)}K`;
+  const fileBase = `isotherms-${modelMode}-${axisMode}-T${T.toFixed(0)}K`;
+  const csvColumns = [
+    { key: 'Vm', label: 'Vm_L_per_mol' },
+    { key: 'rho', label: 'rho_g_per_L' },
+    { key: 'pClassic', label: 'p_classic_atm' },
+    { key: 'pTag', label: 'p_tag_atm' },
+    { key: 'pCritical', label: 'p_critical_atm' },
+    { key: 'pSup', label: 'p_supercritical_atm' },
+    { key: 'pSub', label: 'p_subcritical_atm' },
+    { key: 'delta', label: 'delta_p_atm' },
+  ];
 
   return (
     <div className="h-full flex flex-col">
@@ -112,6 +126,11 @@ export default function IsothermsView({ params, T, modelMode, axisMode }) {
 
         <div className="ml-auto flex items-center gap-2 text-[10px] font-mono text-slate-500">
           <span>yakınlaştır: grafikte sürükle</span>
+          <ExportMenu
+            onPng={() => exportPngFromElement(chartRef.current, `${fileBase}.png`)}
+            onSvg={() => exportSvgFromElement(chartRef.current, `${fileBase}.svg`)}
+            onCsv={() => exportCsv(data, csvColumns, `${fileBase}.csv`)}
+          />
           {isZoomed && (
             <button
               type="button"
@@ -124,7 +143,7 @@ export default function IsothermsView({ params, T, modelMode, axisMode }) {
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 px-2">
+      <div ref={chartRef} className="flex-1 min-h-0 px-2">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={data} margin={{ top: 10, right: 20, left: 10, bottom: 25 }} {...chartHandlers}>
             <CartesianGrid stroke="#1e293b" strokeDasharray="2 4" />

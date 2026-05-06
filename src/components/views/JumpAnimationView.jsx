@@ -15,6 +15,8 @@ import { vdw } from '../../physics/vdw.js';
 import { tagVdw, lambda } from '../../physics/metastable.js';
 import { rhoFromVm } from '../../physics/density.js';
 import { linspace } from '../../utils/format.js';
+import { exportCsv, exportPngFromElement, exportSvgFromElement } from '../../utils/exportChart.js';
+import ExportMenu from '../ui/ExportMenu.jsx';
 
 export default function JumpAnimationView({ params, T, modelMode, axisMode }) {
   const { a, b, Vmin, Vmax, M } = params;
@@ -31,6 +33,7 @@ export default function JumpAnimationView({ params, T, modelMode, axisMode }) {
 
   const rafRef = useRef();
   const lastTickRef = useRef(Date.now());
+  const chartRef = useRef(null);
 
   const iso = useMemo(() => {
     const Vs = linspace(Math.max(Vmin, b * 1.02), Vmax, 300);
@@ -122,6 +125,16 @@ export default function JumpAnimationView({ params, T, modelMode, axisMode }) {
     p_gas: i >= branches.minIdx ? d.p_vdw : null,
     p_unstable: i > branches.maxIdx && i < branches.minIdx ? d.p_vdw : null,
   }));
+  const fileBase = `jump-${modelMode}-${axisMode}-T${T.toFixed(0)}K-tau${tau.toFixed(2)}`;
+  const csvColumns = [
+    { key: 'Vm', label: 'Vm_L_per_mol' },
+    { key: 'rho', label: 'rho_g_per_L' },
+    { key: 'p_vdw', label: 'p_classic_atm' },
+    { key: 'p_ext', label: 'p_tag_atm' },
+    { key: 'p_meta_liquid', label: 'p_meta_liquid_atm' },
+    { key: 'p_unstable', label: 'p_unstable_atm' },
+    { key: 'p_gas', label: 'p_gas_atm' },
+  ];
 
   return (
     <div className="h-full flex flex-col">
@@ -143,6 +156,11 @@ export default function JumpAnimationView({ params, T, modelMode, axisMode }) {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <ExportMenu
+            onPng={() => exportPngFromElement(chartRef.current, `${fileBase}.png`)}
+            onSvg={() => exportSvgFromElement(chartRef.current, `${fileBase}.svg`)}
+            onCsv={() => exportCsv(shadedData, csvColumns, `${fileBase}.csv`)}
+          />
           <button onClick={() => setPlaying((p) => !p)} disabled={jumped || !isTag}
             className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-slate-400 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-30">
             {playing ? <Pause size={13} /> : <Play size={13} />}
@@ -184,7 +202,7 @@ export default function JumpAnimationView({ params, T, modelMode, axisMode }) {
         </div>
       </div>
 
-      <div className="flex-1 px-2 pb-2">
+      <div ref={chartRef} className="flex-1 px-2 pb-2">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={shadedData} margin={{ top: 10, right: 20, left: 10, bottom: 25 }}>
             <CartesianGrid stroke="#1e293b" strokeDasharray="2 4" />

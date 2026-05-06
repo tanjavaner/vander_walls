@@ -6,7 +6,7 @@
  *
  * TAĞ modunda etkili basınç Peff = P - Δpₘ·Λ kullanılır.
  */
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import {
   Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ResponsiveContainer, ReferenceLine, ReferenceArea, Area, ComposedChart,
@@ -17,8 +17,11 @@ import { deltaPm, lambda } from '../../physics/metastable.js';
 import { rhoFromVm } from '../../physics/density.js';
 import { useChartZoom } from '../../hooks/useChartZoom.js';
 import { linspace } from '../../utils/format.js';
+import { exportCsv, exportPngFromElement, exportSvgFromElement } from '../../utils/exportChart.js';
+import ExportMenu from '../ui/ExportMenu.jsx';
 
 export default function IsobarsView({ params, P, modelMode, axisMode }) {
+  const chartRef = useRef(null);
   const { a, b, Tcr, Pcr, Vmin, Vmax, M } = params;
   const isTag = modelMode === 'tag';
   const isCompare = modelMode === 'compare';
@@ -92,6 +95,17 @@ export default function IsobarsView({ params, P, modelMode, axisMode }) {
   const mainKey = isTag ? 'Ttag' : 'Tclassic';
   const mainColor = isTag ? '#10b981' : '#fbbf24';
   const mainLabel = isTag ? `TAĞ-vdW @ P=${P.toFixed(1)} atm` : `Klasik vdW @ P=${P.toFixed(1)} atm`;
+  const fileBase = `isobars-${modelMode}-${axisMode}-P${P.toFixed(1)}atm`;
+  const csvColumns = [
+    { key: 'Vm', label: 'Vm_L_per_mol' },
+    { key: 'rho', label: 'rho_g_per_L' },
+    { key: 'Tclassic', label: 'T_classic_K' },
+    { key: 'Ttag', label: 'T_tag_K' },
+    { key: 'Tcritical', label: 'T_at_Pcr_K' },
+    { key: 'Tlow', label: 'T_low_pressure_K' },
+    { key: 'Thigh', label: 'T_high_pressure_K' },
+    { key: 'deltaT', label: 'delta_T_K' },
+  ];
 
   return (
     <div className="h-full flex flex-col">
@@ -125,6 +139,11 @@ export default function IsobarsView({ params, P, modelMode, axisMode }) {
 
         <div className="ml-auto flex items-center gap-2 text-[10px] font-mono text-slate-500">
           <span>yakınlaştır: grafikte sürükle</span>
+          <ExportMenu
+            onPng={() => exportPngFromElement(chartRef.current, `${fileBase}.png`)}
+            onSvg={() => exportSvgFromElement(chartRef.current, `${fileBase}.svg`)}
+            onCsv={() => exportCsv(data, csvColumns, `${fileBase}.csv`)}
+          />
           {isZoomed && (
             <button
               type="button"
@@ -137,7 +156,7 @@ export default function IsobarsView({ params, P, modelMode, axisMode }) {
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 px-2">
+      <div ref={chartRef} className="flex-1 min-h-0 px-2">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={data} margin={{ top: 10, right: 20, left: 10, bottom: 25 }} {...chartHandlers}>
             <CartesianGrid stroke="#1e293b" strokeDasharray="2 4" />
