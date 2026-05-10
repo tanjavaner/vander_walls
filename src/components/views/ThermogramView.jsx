@@ -24,9 +24,13 @@ import {
 import Slider from '../ui/Slider.jsx';
 import Pill from '../ui/Pill.jsx';
 import { generateThermogram, estimateTauFromExperiment } from '../../physics/thermogram.js';
+import { ATM_TO_BAR } from '../../physics/constants.js';
+import { useFullscreen } from '../../hooks/useFullscreen.js';
+import { chartAxisLabel, chartLegendStyle, chartReferenceLabel, chartTick } from '../../utils/chartStyles.js';
 import { exportCsv, exportPngFromElement, exportSvgFromElement } from '../../utils/exportChart.js';
 import ChartTooltip from '../ui/ChartTooltip.jsx';
 import ExportMenu from '../ui/ExportMenu.jsx';
+import FullscreenButton from '../ui/FullscreenButton.jsx';
 
 export default function ThermogramView({ params }) {
   // Her madde için varsayılan donma noktası gelir; kullanıcı ince ayar yapabilir
@@ -52,6 +56,7 @@ export default function ThermogramView({ params }) {
   const rafRef = useRef();
   const lastTickRef = useRef(Date.now());
   const chartRef = useRef(null);
+  const { isFullscreen, exitFullscreen, toggleFullscreen } = useFullscreen(chartRef);
 
   const thermo = useMemo(
     () => generateThermogram({
@@ -110,6 +115,7 @@ export default function ThermogramView({ params }) {
 
   const Tmin = Tfreeze - deltaT;
   const yDomain = [Tmin - 10, Tstart + 5];
+  const pcrTooltipRows = [{ label: 'Pcr', value: `${(params.Pcr * ATM_TO_BAR).toFixed(1)} bar` }];
   const fileBase = `thermogram-Tfreeze${Tfreeze.toFixed(1)}K-delta${deltaT.toFixed(1)}K`;
   const csvColumns = [
     { key: 't', label: 'time_s' },
@@ -136,6 +142,7 @@ export default function ThermogramView({ params }) {
             onSvg={() => exportSvgFromElement(chartRef.current, `${fileBase}.svg`)}
             onCsv={() => exportCsv(data, csvColumns, `${fileBase}.csv`)}
           />
+          <FullscreenButton isFullscreen={isFullscreen} onClick={toggleFullscreen} />
           <button onClick={() => setAnimating((p) => !p)}
             className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-slate-400 hover:text-slate-950">
             {animating ? <Pause size={13} /> : <Play size={13} />}
@@ -173,18 +180,28 @@ export default function ThermogramView({ params }) {
       </div>
 
       {/* Ana grafik */}
-      <div ref={chartRef} className="flex-1 min-h-0 px-2">
+      <div
+        ref={chartRef}
+        className={isFullscreen
+          ? 'relative h-screen w-screen overflow-hidden bg-white p-6'
+          : 'relative flex-1 min-h-0 px-2'}
+      >
+        {isFullscreen && (
+          <div className="absolute right-4 top-4 z-20">
+            <FullscreenButton isFullscreen onClick={exitFullscreen} className="shadow-md" />
+          </div>
+        )}
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={animTime > 0 ? visibleData : data}
             margin={{ top: 10, right: 30, left: 10, bottom: 25 }}>
             <CartesianGrid stroke="#1e293b" strokeDasharray="2 4" />
             <XAxis dataKey="t" type="number" domain={[0, keyPoints.tTotal]}
               tickFormatter={(v) => v.toFixed(0)}
-              stroke="#64748b" tick={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace' }}
-              label={{ value: 'zaman  [s]', position: 'insideBottom', offset: -10, fill: '#94a3b8', fontSize: 11 }} />
+              stroke="#64748b" tick={chartTick}
+              label={{ ...chartAxisLabel, value: 'zaman  [s]', position: 'insideBottom', offset: -10 }} />
             <YAxis domain={yDomain}
-              stroke="#64748b" tick={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace' }}
-              label={{ value: 'T  [K]', angle: -90, position: 'insideLeft', fill: '#94a3b8', fontSize: 11 }} />
+              stroke="#64748b" tick={chartTick}
+              label={{ ...chartAxisLabel, value: 'T  [K]', angle: -90, position: 'insideLeft' }} />
             <Tooltip
               content={
                 <ChartTooltip
@@ -193,23 +210,24 @@ export default function ThermogramView({ params }) {
                   xDecimals={1}
                   valueUnit="K"
                   valueDecimals={2}
+                  referenceRows={pcrTooltipRows}
                 />
               }
             />
-            <Legend wrapperStyle={{ fontSize: 10, paddingTop: 8 }} />
+            <Legend wrapperStyle={chartLegendStyle} />
 
             {/* Referans çizgiler */}
             <ReferenceLine y={Tfreeze} stroke="#22d3ee" strokeDasharray="4 4"
-              label={{ value: `T_donma = ${Tfreeze.toFixed(1)}K`, fill: '#22d3ee', fontSize: 10, position: 'right' }} />
+              label={{ ...chartReferenceLabel, value: `T_donma = ${Tfreeze.toFixed(1)}K`, fill: '#0891b2', position: 'right' }} />
             <ReferenceLine y={Tmin} stroke="#a78bfa" strokeDasharray="2 4"
-              label={{ value: `T_min = ${Tmin.toFixed(1)}K (ΔT=${deltaT})`, fill: '#a78bfa', fontSize: 10, position: 'right' }} />
+              label={{ ...chartReferenceLabel, value: `T_min = ${Tmin.toFixed(1)}K (ΔT=${deltaT})`, fill: '#7c3aed', position: 'right' }} />
 
             {/* Metastabil bölge vurgusu */}
             <ReferenceLine x={keyPoints.b.t} stroke="#475569" strokeDasharray="1 3" />
             <ReferenceLine x={keyPoints.c.t} stroke="#a78bfa" strokeDasharray="1 3"
-              label={{ value: 'c', fill: '#a78bfa', fontSize: 11, position: 'top' }} />
+              label={{ ...chartReferenceLabel, value: 'c', fill: '#7c3aed', position: 'top' }} />
             <ReferenceLine x={keyPoints.d.t} stroke="#ef4444" strokeDasharray="1 3"
-              label={{ value: 'd (sıçrama)', fill: '#ef4444', fontSize: 10, position: 'top' }} />
+              label={{ ...chartReferenceLabel, value: 'd (sıçrama)', fill: '#ef4444', position: 'top' }} />
 
             {/* Ana eğri — animasyon modunda iki katmanlı */}
             {animTime > 0 ? (
@@ -226,16 +244,16 @@ export default function ThermogramView({ params }) {
 
             {/* Anahtar noktalar */}
             <ReferenceDot x={keyPoints.a.t} y={keyPoints.a.T} r={4} fill="#22d3ee" stroke="#fff" strokeWidth={1}
-              label={{ value: 'a', fill: '#22d3ee', fontSize: 12, position: 'top' }} />
+              label={{ ...chartReferenceLabel, value: 'a', fill: '#0891b2', position: 'top' }} />
             <ReferenceDot x={keyPoints.b.t} y={keyPoints.b.T} r={4} fill="#22d3ee" stroke="#fff" strokeWidth={1}
-              label={{ value: 'b', fill: '#22d3ee', fontSize: 12, position: 'top' }} />
+              label={{ ...chartReferenceLabel, value: 'b', fill: '#0891b2', position: 'top' }} />
             <ReferenceDot x={keyPoints.c.t} y={keyPoints.c.T} r={5} fill="#a78bfa" stroke="#fff" strokeWidth={2}
-              label={{ value: 'c ← en düşük', fill: '#a78bfa', fontSize: 11, position: 'bottom' }} />
+              label={{ ...chartReferenceLabel, value: 'c ← en düşük', fill: '#7c3aed', position: 'bottom' }} />
             <ReferenceDot x={keyPoints.d.t} y={keyPoints.d.T} r={5} fill="#ef4444" stroke="#fff" strokeWidth={2} />
             <ReferenceDot x={keyPoints.e.t} y={keyPoints.e.T} r={4} fill="#10b981" stroke="#fff" strokeWidth={1}
-              label={{ value: 'e', fill: '#10b981', fontSize: 12, position: 'top' }} />
+              label={{ ...chartReferenceLabel, value: 'e', fill: '#059669', position: 'top' }} />
             <ReferenceDot x={keyPoints.f.t} y={keyPoints.f.T} r={4} fill="#64748b" stroke="#fff" strokeWidth={1}
-              label={{ value: 'f', fill: '#64748b', fontSize: 12, position: 'top' }} />
+              label={{ ...chartReferenceLabel, value: 'f', fill: '#475569', position: 'top' }} />
 
             {/* Animasyon imleci */}
             {cursor && (

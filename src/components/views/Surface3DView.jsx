@@ -7,12 +7,16 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { AXIS_VARS, AXIS_PRESETS, computeVar } from '../../data/axisPresets.js';
+import { ATM_TO_BAR } from '../../physics/constants.js';
+import { useFullscreen } from '../../hooks/useFullscreen.js';
 import { formatTick, clamp } from '../../utils/format.js';
 import { exportCanvasPng, exportCsv } from '../../utils/exportChart.js';
 import ExportMenu from '../ui/ExportMenu.jsx';
+import FullscreenButton from '../ui/FullscreenButton.jsx';
 
 export default function Surface3DView({ params, modelMode }) {
   const mountRef = useRef(null);
+  const { isFullscreen, exitFullscreen, toggleFullscreen } = useFullscreen(mountRef);
   const isTag = modelMode === 'tag' || modelMode === 'compare';
   const isCompareMode = modelMode === 'compare';
 
@@ -89,6 +93,7 @@ export default function Surface3DView({ params, modelMode }) {
     const colors = [];
 
     const { a, b, Tcr, Pcr, Vmin, Vmax, Tmin, Tmax } = params;
+    const PcrAxis = Pcr * ATM_TO_BAR;
     const Vlo = Math.max(Vmin, b * 1.05);
     const Vhi = Vmax;
     const Tlo = Tmin, Thi = Tmax;
@@ -114,7 +119,7 @@ export default function Surface3DView({ params, modelMode }) {
       const f = vals.filter(Number.isFinite);
       if (!f.length) return { lo: 0, hi: 1 };
       let lo = Math.min(...f), hi = Math.max(...f);
-      if (clampP) { lo = Math.max(lo, -Pcr * 0.5); hi = Math.min(hi, Pcr * 2.5); }
+      if (clampP) { lo = Math.max(lo, -PcrAxis * 0.5); hi = Math.min(hi, PcrAxis * 2.5); }
       if (Math.abs(hi - lo) < 1e-9) hi = lo + 1;
       return { lo, hi };
     };
@@ -135,7 +140,7 @@ export default function Surface3DView({ params, modelMode }) {
       positions.setZ(idx, wz);
 
       const zN = (clamp(z, zR.lo, zR.hi) - zR.lo) / (zR.hi - zR.lo);
-      const zCritVal = axisZ === 'p' && !isTag ? Pcr : null;
+      const zCritVal = axisZ === 'p' && !isTag ? PcrAxis : null;
       const distToCr = zCritVal !== null ? Math.abs(z - zCritVal) / (zR.hi - zR.lo) : 1;
       let r, g, bc;
       if (distToCr < 0.04) { r = 0.94; g = 0.27; bc = 0.27; }
@@ -211,7 +216,7 @@ export default function Surface3DView({ params, modelMode }) {
         const frac = k / 2;
         const val = range.lo + frac * (range.hi - range.lo);
         const worldPos = -1 + frac * 2;
-        const sp = makeTextSprite(formatTick(val), { color: '#94a3b8', size: 48 });
+        const sp = makeTextSprite(formatTick(val), { color: '#e2e8f0', size: 60, bold: true });
         if (axisDir === 'x') sp.position.set(worldPos, -0.45, -1);
         else if (axisDir === 'y') sp.position.set(-1, -0.45, worldPos);
         else { const h = -0.3 + frac * 1.6; sp.position.set(-1.15, h, -1); }
@@ -227,7 +232,7 @@ export default function Surface3DView({ params, modelMode }) {
       const cyv = computeVar(axisY, Vc, Tcr, params, isTag);
       const wx = ((clamp(cxv, xR.lo, xR.hi) - xR.lo) / (xR.hi - xR.lo)) * 2 - 1;
       const wz = ((clamp(cyv, yR.lo, yR.hi) - yR.lo) / (yR.hi - yR.lo)) * 2 - 1;
-      const wy = ((clamp(Pcr, zR.lo, zR.hi) - zR.lo) / (zR.hi - zR.lo)) * 1.6 - 0.3;
+      const wy = ((clamp(PcrAxis, zR.lo, zR.hi) - zR.lo) / (zR.hi - zR.lo)) * 1.6 - 0.3;
       const cr = new THREE.Mesh(
         new THREE.SphereGeometry(0.05, 20, 20),
         new THREE.MeshBasicMaterial({ color: 0xef4444 })
@@ -301,7 +306,7 @@ export default function Surface3DView({ params, modelMode }) {
       renderer.dispose();
       if (mount.contains(renderer.domElement)) mount.removeChild(renderer.domElement);
     };
-  }, [params, isTag, axisX, axisY, axisZ]);
+  }, [params, isTag, axisX, axisY, axisZ, isFullscreen]);
 
   return (
     <div className="h-full flex flex-col">
@@ -325,6 +330,7 @@ export default function Surface3DView({ params, modelMode }) {
             onPng={() => exportCanvasPng(mountRef.current?.querySelector('canvas'), `${fileBase}.png`)}
             onCsv={() => exportCsv(surfaceRows, csvColumns, `${fileBase}.csv`)}
           />
+          <FullscreenButton isFullscreen={isFullscreen} onClick={toggleFullscreen} />
         </div>
 
         {/* Eksen seçici */}
@@ -371,7 +377,18 @@ export default function Surface3DView({ params, modelMode }) {
           </div>
         </div>
       </div>
-      <div ref={mountRef} className="flex-1 cursor-grab active:cursor-grabbing" />
+      <div
+        ref={mountRef}
+        className={isFullscreen
+          ? 'relative h-screen w-screen cursor-grab overflow-hidden bg-slate-950 active:cursor-grabbing'
+          : 'relative flex-1 cursor-grab active:cursor-grabbing'}
+      >
+        {isFullscreen && (
+          <div className="absolute right-4 top-4 z-20">
+            <FullscreenButton isFullscreen onClick={exitFullscreen} className="shadow-md" />
+          </div>
+        )}
+      </div>
     </div>
   );
 }

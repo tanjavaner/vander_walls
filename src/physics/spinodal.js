@@ -23,7 +23,7 @@ import { linspace } from '../utils/format.js';
  * vdW için spinodal koşulu:
  *     dp/dVm = -RT/(Vm-b)^2 + 2a/Vm^3 = 0
  *
- * T < Tcr iken iki kök vardır:
+ * T < Tcr_model iken iki kök vardır:
  *   - küçük hacim kökü: sıvı spinodalı, yerel basınç minimumu
  *   - büyük hacim kökü: gaz spinodalı, yerel basınç maksimumu
  *

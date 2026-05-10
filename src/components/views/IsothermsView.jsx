@@ -14,15 +14,21 @@ import {
 import { vdw } from '../../physics/vdw.js';
 import { deltaPm, lambda } from '../../physics/metastable.js';
 import { rhoFromVm } from '../../physics/density.js';
+import { ATM_TO_BAR } from '../../physics/constants.js';
 import { findSpinodal, maxDeviation } from '../../physics/spinodal.js';
 import { useChartZoom } from '../../hooks/useChartZoom.js';
+import { useFullscreen } from '../../hooks/useFullscreen.js';
 import { formatCompactTick, linspace } from '../../utils/format.js';
+import { getFullDomain } from '../../utils/chartDomain.js';
+import { chartAxisLabel, chartLegendStyle, chartReferenceLabel, chartSmallTick, chartTick } from '../../utils/chartStyles.js';
 import { exportCsv, exportPngFromElement, exportSvgFromElement } from '../../utils/exportChart.js';
 import ChartTooltip from '../ui/ChartTooltip.jsx';
 import ExportMenu from '../ui/ExportMenu.jsx';
+import FullscreenButton from '../ui/FullscreenButton.jsx';
 
 export default function IsothermsView({ params, T, modelMode, axisMode }) {
   const chartRef = useRef(null);
+  const { isFullscreen, exitFullscreen, toggleFullscreen } = useFullscreen(chartRef);
   const { a, b, Tcr, Vmin, Vmax, M } = params;
   const isTag = modelMode === 'tag';
   const isCompare = modelMode === 'compare';
@@ -31,21 +37,35 @@ export default function IsothermsView({ params, T, modelMode, axisMode }) {
   const xKey = useRho ? 'rho' : 'Vm';
   const xLabel = useRho ? 'ρ  [g/L]' : 'Vₘ  [L/mol]';
   const xUnit = useRho ? 'g/L' : 'L/mol';
+  const pcrBar = params.Pcr * ATM_TO_BAR;
+  const pcrTooltipRows = [{ label: 'Pcr', value: `${pcrBar.toFixed(1)} bar` }];
+  const formatPressureBar = (value, decimals = 2) => `${(Number(value) * ATM_TO_BAR).toFixed(decimals)} bar`;
+  const plotYKeys = ['pClassic', 'pTag', 'pCritical', 'pSup', 'pSub'];
 
   const data = useMemo(() => {
     const Vs = linspace(Math.max(Vmin, b * 1.02), Vmax, 300);
     return Vs.map((v) => {
       const classic = vdw(v, T, a, b);
       const meta = deltaPm(v, params.A, params.V0, params.sigma) * lambda(params.tau);
+      const pTag = classic + meta;
+      const pCritical = vdw(v, Tcr, a, b);
+      const pSup = vdw(v, Tcr * 1.15, a, b);
+      const pSub = vdw(v, Tcr * 0.85, a, b);
       return {
         Vm: v,
         rho: rhoFromVm(v, M),
         pClassic: classic,
-        pTag: classic + meta,
-        pCritical: vdw(v, Tcr, a, b),
-        pSup: vdw(v, Tcr * 1.15, a, b),
-        pSub: vdw(v, Tcr * 0.85, a, b),
+        pTag,
+        pCritical,
+        pSup,
+        pSub,
         delta: meta,
+        pClassicBar: classic * ATM_TO_BAR,
+        pTagBar: pTag * ATM_TO_BAR,
+        pCriticalBar: pCritical * ATM_TO_BAR,
+        pSupBar: pSup * ATM_TO_BAR,
+        pSubBar: pSub * ATM_TO_BAR,
+        deltaBar: meta * ATM_TO_BAR,
       };
     });
   }, [params, T, M, a, b, Tcr, Vmin, Vmax]);
@@ -60,20 +80,25 @@ export default function IsothermsView({ params, T, modelMode, axisMode }) {
     xDomain,
     visibleData,
     selectionDomain,
+    containerHandlers,
     chartHandlers,
-  } = useChartZoom(data, xKey);
+  } = useChartZoom(data, xKey, {
+    resetKey: `${Tcr}:${params.Pcr}:${Vmin}:${Vmax}`,
+    wheelEnabled: isFullscreen,
+  });
   const zoomedData = visibleData.length ? visibleData : data;
 
   const yDomain = useMemo(() => {
     const vals = zoomedData.flatMap((d) =>
-      [d.pClassic, d.pTag, d.pCritical, d.pSup, d.pSub].filter(Number.isFinite)
+      plotYKeys.map((key) => d[key]).filter(Number.isFinite)
     );
-    if (!vals.length) return [0, 100];
-    const lo = Math.min(...vals);
-    const hi = Math.max(...vals);
-    const pad = (hi - lo) * 0.05;
-    return [Math.max(lo - pad, -20), Math.min(hi + pad, params.Pcr * 3)];
-  }, [zoomedData, params.Pcr]);
+    vals.push(params.Pcr);
+    return getFullDomain(vals, {
+      fallback: [0, Math.max(params.Pcr, 100)],
+      padRatio: 0.1,
+      minPad: 1,
+    });
+  }, [params.Pcr, zoomedData]);
 
   const deltaYDomain = useMemo(() => {
     const vals = zoomedData.map((d) => d.delta).filter(Number.isFinite);
@@ -92,12 +117,12 @@ export default function IsothermsView({ params, T, modelMode, axisMode }) {
   const csvColumns = [
     { key: 'Vm', label: 'Vm_L_per_mol' },
     { key: 'rho', label: 'rho_g_per_L' },
-    { key: 'pClassic', label: 'p_classic_atm' },
-    { key: 'pTag', label: 'p_tag_atm' },
-    { key: 'pCritical', label: 'p_critical_atm' },
-    { key: 'pSup', label: 'p_supercritical_atm' },
-    { key: 'pSub', label: 'p_subcritical_atm' },
-    { key: 'delta', label: 'delta_p_atm' },
+    { key: 'pClassicBar', label: 'p_classic_bar' },
+    { key: 'pTagBar', label: 'p_tag_bar' },
+    { key: 'pCriticalBar', label: 'p_critical_bar' },
+    { key: 'pSupBar', label: 'p_supercritical_bar' },
+    { key: 'pSubBar', label: 'p_subcritical_bar' },
+    { key: 'deltaBar', label: 'delta_p_bar' },
   ];
 
   return (
@@ -117,7 +142,7 @@ export default function IsothermsView({ params, T, modelMode, axisMode }) {
             <div>
               <div className="text-emerald-400/60 uppercase tracking-wider text-[9px]">Max sapma</div>
               <div className="text-sm tabular-nums text-emerald-700">
-                {deviation.signed >= 0 ? '+' : ''}{deviation.signed.toFixed(2)} atm
+                {deviation.signed >= 0 ? '+' : ''}{(deviation.signed * ATM_TO_BAR).toFixed(2)} bar
               </div>
             </div>
             <div className="h-7 w-px bg-emerald-200" />
@@ -137,10 +162,22 @@ export default function IsothermsView({ params, T, modelMode, axisMode }) {
             onSvg={() => exportSvgFromElement(chartRef.current, `${fileBase}.svg`)}
             onCsv={() => exportCsv(data, csvColumns, `${fileBase}.csv`)}
           />
+          <FullscreenButton isFullscreen={isFullscreen} onClick={toggleFullscreen} />
         </div>
       </div>
 
-      <div ref={chartRef} className="flex-1 min-h-0 px-2">
+      <div
+        ref={chartRef}
+        {...containerHandlers}
+        className={isFullscreen
+          ? 'relative h-screen w-screen cursor-grab overflow-hidden bg-white p-6 active:cursor-grabbing'
+          : 'relative flex-1 min-h-0 px-2'}
+      >
+        {isFullscreen && (
+          <div className="absolute right-4 top-4 z-20">
+            <FullscreenButton isFullscreen onClick={exitFullscreen} className="shadow-md" />
+          </div>
+        )}
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={data} margin={{ top: 10, right: 20, left: 10, bottom: 25 }} {...chartHandlers}>
             <CartesianGrid stroke="#1e293b" strokeDasharray="2 4" />
@@ -151,17 +188,17 @@ export default function IsothermsView({ params, T, modelMode, axisMode }) {
               allowDataOverflow
               tickFormatter={(v) => (useRho ? v.toFixed(0) : v.toFixed(2))}
               stroke="#64748b"
-              tick={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace' }}
-              label={{ value: xLabel, position: 'insideBottom', offset: -10, fill: '#94a3b8', fontSize: 11 }}
+              tick={chartTick}
+              label={{ ...chartAxisLabel, value: xLabel, position: 'insideBottom', offset: -10 }}
             />
             <YAxis
               domain={yDomain}
               allowDataOverflow
               width={58}
-              tickFormatter={formatCompactTick}
+              tickFormatter={(v) => formatCompactTick(v * ATM_TO_BAR)}
               stroke="#64748b"
-              tick={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace' }}
-              label={{ value: 'p  [atm]', angle: -90, position: 'insideLeft', fill: '#94a3b8', fontSize: 11 }}
+              tick={chartTick}
+              label={{ ...chartAxisLabel, value: 'p  [bar]', angle: -90, position: 'insideLeft' }}
             />
             <Tooltip
               content={
@@ -169,12 +206,12 @@ export default function IsothermsView({ params, T, modelMode, axisMode }) {
                   xLabel={useRho ? 'ρ' : 'Vₘ'}
                   xUnit={xUnit}
                   xDecimals={useRho ? 1 : 3}
-                  valueUnit="atm"
-                  valueDecimals={2}
+                  valueFormatter={(val, entry) => [formatPressureBar(val), entry.name ?? entry.dataKey]}
+                  referenceRows={pcrTooltipRows}
                 />
               }
             />
-            <Legend wrapperStyle={{ fontSize: 10, paddingTop: 8 }} />
+            <Legend wrapperStyle={chartLegendStyle} />
 
             {spinodal && (
               <ReferenceArea
@@ -187,7 +224,7 @@ export default function IsothermsView({ params, T, modelMode, axisMode }) {
                 stroke="#f59e0b"
                 strokeOpacity={0.25}
                 strokeDasharray="2 2"
-                label={{ value: 'Spinodal aralığı', fill: '#fbbf24', fontSize: 10, position: 'insideTop' }}
+                label={{ ...chartReferenceLabel, value: 'Spinodal aralığı', fill: '#fbbf24', position: 'insideTop' }}
               />
             )}
 
@@ -209,7 +246,7 @@ export default function IsothermsView({ params, T, modelMode, axisMode }) {
               y={params.Pcr}
               stroke="#64748b"
               strokeDasharray="3 3"
-              label={{ value: 'Pcr', fill: '#94a3b8', fontSize: 10, position: 'right' }}
+              label={{ ...chartReferenceLabel, value: `Pcr=${pcrBar.toFixed(1)} bar`, position: 'right' }}
             />
 
             <Line
@@ -294,15 +331,15 @@ export default function IsothermsView({ params, T, modelMode, axisMode }) {
               allowDataOverflow
               tickFormatter={(v) => (useRho ? v.toFixed(0) : v.toFixed(2))}
               stroke="#475569"
-              tick={{ fontSize: 9, fontFamily: 'JetBrains Mono, monospace' }}
+              tick={chartSmallTick}
             />
             <YAxis
               domain={deltaYDomain}
               allowDataOverflow
               stroke="#475569"
-              tick={{ fontSize: 9, fontFamily: 'JetBrains Mono, monospace' }}
+              tick={chartSmallTick}
               width={52}
-              tickFormatter={formatCompactTick}
+              tickFormatter={(v) => formatCompactTick(v * ATM_TO_BAR)}
             />
             <Tooltip
               content={
@@ -310,7 +347,8 @@ export default function IsothermsView({ params, T, modelMode, axisMode }) {
                   xLabel={useRho ? 'ρ' : 'Vₘ'}
                   xUnit={xUnit}
                   xDecimals={useRho ? 1 : 3}
-                  valueFormatter={(val) => [`${Number(val).toFixed(3)} atm`, 'Δp']}
+                  valueFormatter={(val) => [formatPressureBar(val, 3), 'Δp']}
+                  referenceRows={pcrTooltipRows}
                 />
               }
             />

@@ -16,6 +16,26 @@ Eksen modu:
 - `Vm`: molar hacim, L/mol.
 - `rho`: yoğunluk, g/L. Tüm dönüşümler `src/physics/density.js` ile yapılır.
 
+Basınç hesapları model içinde atm birimiyle yapılır. Kullanıcıya görünen basınç
+eksenleri, lejantları ve tooltip değerleri bar olarak formatlanır. Tooltiplerde
+model grafikleri için `Pcr` ayrı bir referans satırı olarak gösterilir.
+Parametre panelindeki sliderların sayı alanları doğrudan yazılabilir; özellikle
+bar değerleri yazılırken alan boşaltılıp yeni değer girilebilir.
+
+2B grafiklerde otomatik eksen aralığı, çizili eğrilerin tam sonlu aralığından
+`src/utils/chartDomain.js` ile hesaplanır. `Tcr/Pcr` değiştiğinde ana grafiklerde
+zoom sıfırlanır; yeni kritik referans çizgisi ve eğrilerin eğimli bölgeleri
+birlikte görünecek şekilde sınırlar yeniden açılır.
+
+Tam ekran modu yalnızca grafik alanını kapsar; panel başlıkları ve sol
+parametreler tam ekrana alınmaz. 2B grafiklerde tam ekran açıkken:
+
+- fare tekerleği imlecin bulunduğu x konumu çevresinde zoom yapar,
+- yatay trackpad hareketi veya `Shift` + tekerlek x ekseninde kaydırır,
+- normal sol tuş sürükleme mevcut zoom penceresini x ekseninde taşır,
+- normal ekranda sürükleme aralık seçerek zoom yapmaya devam eder,
+- çift tık zoom'u sıfırlar.
+
 ## İzotermler
 
 Dosya: `src/components/views/IsothermsView.jsx`.
@@ -33,6 +53,9 @@ Spinodal aralığı `findSpinodal` çıktısıyla gösterilir. `rho` ekseninde a
 ters yönde olacağı için `Vgas` ve `Vliq` dönüşümlerinin sırası özellikle
 korunmalıdır.
 
+Y ekseni ve tooltipteki basınç değerleri bar'a çevrilir. `Pcr` referans çizgisi
+grafik alanına dahil edilir ve etiketi bar cinsindendir.
+
 ## İzobarlar
 
 Dosya: `src/components/views/IsobarsView.jsx`.
@@ -48,6 +71,7 @@ Dosya: `src/components/views/IsobarsView.jsx`.
 
 TA-vdW izobarında sabit tutulan büyüklük toplam basınçtır. Bu yüzden metastabil
 basınç katkısı, ters vdW sıcaklığına verilmeden önce `P` değerinden çıkarılır.
+Lejantlarda `P`, `Pcr`, `0.5 Pcr` ve `1.5 Pcr` bar cinsinden yazılır.
 
 ## 3B Yüzey
 
@@ -65,6 +89,7 @@ Dosya: `src/components/views/Surface3DView.jsx`.
 Klasik kritik nokta yalnızca klasik yüzeyde işaretlenmelidir. TA-vdW modunda
 klasik `Pcr,Tcr,Vc` noktası düzeltilmiş yüzeyin kritik noktası gibi
 sunulmamalıdır.
+3B yüzeyde `p` ve `Δp` eksenleri bar olarak ölçeklenir.
 
 ## Sıçrama
 
@@ -77,8 +102,10 @@ Sıçrama görünümü şu yolu izler:
 - gaz kolunda `p_vdw(Vm,T)=pMin` kökü çözülür,
 - yatay sıçrama çizgisi bu basınçta çizilir.
 
-`T >= Tcr` veya kök bulunamayan durumda görünüm tek faz olarak davranır ve
-sıçrama animasyonu devre dışı kalır.
+`T >= Tcr_model` veya kök bulunamayan durumda görünüm tek faz olarak davranır ve
+sıçrama animasyonu devre dışı kalır. Buradaki `Tcr_model`, `a,b` sabitlerinden
+türetilen spinodal kritik sıcaklığıdır; arayüzdeki düzenlenebilir `Tcr`
+referansından bağımsız olabilir.
 
 ## T-t Termogram
 
@@ -102,3 +129,9 @@ olmalıdır.
 CSV desteklenir. CSV kolonları grafikte kullanılan hesaplanmış değerlerle aynı
 olmalıdır; sadece ekranda görünen eğriler değil, karşılaştırma için gereken
 temel değerler de korunmalıdır.
+
+PNG/SVG dışa aktarımında `src/utils/exportChart.js`, ekrandaki SVG'yi klonladıktan
+sonra export'a özel okunaklı yazı stilleri uygular. Eksen tickleri, referans
+etiketleri ve diğer SVG metinleri Word'e yapıştırıldığında okunabilmesi için
+daha büyük, kalın ve beyaz konturlu üretilir. PNG çıktısı 4x raster ölçeğinde
+alınır.

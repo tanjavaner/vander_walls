@@ -9,8 +9,8 @@
  * Birimler:
  *   a   [L²·atm/mol²]
  *   b   [L/mol]
- *   Tcr [K]     deneysel referans; uygulama içindeki vdW kritik değeri a,b'den türetilir
- *   Pcr [atm]   deneysel referans; uygulama içindeki vdW kritik değeri a,b'den türetilir
+ *   Tcr [K]     deneysel referans; preset ilk açılışında vdW değeri a,b'den türetilir
+ *   Pcr [atm]   deneysel referans; preset ilk açılışında vdW değeri a,b'den türetilir
  *   M   [g/mol]
  *
  * Donma sıcaklığı Tfreeze — T-t termogramı için kullanılır (1 atm'de, K).

@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Beaker } from 'lucide-react';
 import { PRESETS } from '../../data/gases.js';
+import { ATM_TO_BAR } from '../../physics/constants.js';
 
 export default function GasSelector({
   presetKey,
@@ -43,7 +44,7 @@ export default function GasSelector({
                   <optgroup key={group} label={`── ${group} ──`}>
                     {gases.map((gas) => (
                       <option key={gas.key} value={gas.key}>
-                        {gas.name} · Tcr={gas.Tcr.toFixed(1)}K · Pcr={gas.Pcr.toFixed(1)}atm
+                        {gas.name} · Tcr={gas.Tcr.toFixed(1)}K · Pcr={(gas.Pcr * ATM_TO_BAR).toFixed(1)}bar
                       </option>
                     ))}
                   </optgroup>
@@ -87,7 +88,7 @@ export default function GasSelector({
 
         <div className="ml-auto flex items-baseline gap-4 font-mono text-xs text-slate-500">
           <span>Tcr = <span className="text-slate-900">{params.Tcr.toFixed(2)}</span> K</span>
-          <span>Pcr = <span className="text-slate-900">{params.Pcr.toFixed(2)}</span> atm</span>
+          <span>Pcr = <span className="text-slate-900">{(params.Pcr * ATM_TO_BAR).toFixed(2)}</span> bar</span>
           <span>Vc ≈ <span className="text-slate-900">{(3 * params.b).toFixed(4)}</span> L/mol</span>
           <span>M = <span className="text-slate-900">{params.M?.toFixed(2)}</span> g/mol</span>
         </div>

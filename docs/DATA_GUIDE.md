@@ -44,10 +44,16 @@ Preset içinde yazılan `Tcr` ve `Pcr`, veri kaynağı referansı olarak kabul e
 `expandPreset` çalıştıktan sonra:
 
 - deneysel referanslar `TcrRef` ve `PcrRef` alanlarına taşınır,
-- uygulamada kullanılan `Tcr` ve `Pcr`, `a,b` değerlerinden yeniden hesaplanır.
+- ilk uygulama varsayılanı olarak kullanılan `Tcr` ve `Pcr`, `a,b` değerlerinden
+  yeniden hesaplanır.
 
-Bu politika zorunludur. Çünkü vdW grafikleri `a,b` ile hesaplanırken kritik
-çizgiler deneysel değerlerden alınırsa grafik bilimsel olarak tutarsız görünür.
+Kullanıcı arayüzünde `Tcr` ve `Pcr` artık düzenlenebilir referanslardır. `a,b`
+değişikliği bu iki değeri otomatik değiştirmez; kullanıcı kritik referansları
+ayrı ayrı girebilir. `autoFitBounds` butonu ise bilinçli olarak `a,b` değerlerine
+göre yeni sınırlar üretir.
+
+Basınç değerleri veri/model içinde atm tutulur. Arayüzde ve grafiklerde basınç
+bar olarak gösterilir.
 
 ## Türetilmiş Grafik Sınırları
 
@@ -85,3 +91,6 @@ Yeni veya düzeltilmiş bir gaz için:
 - birim ve etiket `AXIS_VARS` içine eklenmeli,
 - hesap `computeVar` içinde yapılmalı,
 - fiziksel formül gerekiyorsa önce `src/physics/` içine taşınmalı.
+
+`p` ve `Δp` eksenleri kullanıcıya bar biriminde döner; vdW hesabı içeride atm ile
+yapılır ve sonuç gösterim sırasında bar'a çevrilir.

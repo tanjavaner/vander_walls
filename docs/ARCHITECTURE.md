@@ -36,6 +36,7 @@ src/
   hooks/
     useParams.js              Parametre state'i ve preset seçimi
     useChartZoom.js           2B grafik yakınlaştırma
+    useFullscreen.js          Yalnızca grafik alanı için Fullscreen API durumu
     useAnimation.js           Genel requestAnimationFrame döngüsü
 
   components/
@@ -45,7 +46,9 @@ src/
 
   utils/
     format.js                 linspace, formatTick, clamp
-    exportChart.js            PNG, SVG, CSV dışa aktarma
+    chartDomain.js            Grafiklerin robust otomatik eksen aralıkları
+    chartStyles.js            2B grafiklerde ortak büyük/kalın yazı stilleri
+    exportChart.js            PNG, SVG, CSV dışa aktarma; PNG/SVG için okunaklı export stilleri
 ```
 
 ## Veri Akışı
@@ -61,15 +64,21 @@ Alan parametreleri `src/hooks/useParams.js` içinden gelir. Bu hook:
 
 - presetleri `src/data/gases.js` dosyasından yükler,
 - seçili sıcaklık `T` ve basınç `P` değerlerini tutar,
-- `a` veya `b` değiştiğinde `Tcr` ve `Pcr` değerlerini vdW formülleriyle yeniden hesaplar,
+- kullanıcı tarafından düzenlenen `Tcr` ve `Pcr` referanslarını birbirinden ve `a,b` sabitlerinden bağımsız tutar,
 - özel madde moduna geçişi yönetir.
 
 ## Değişiklik Rotaları
 
 - Yeni gaz eklemek veya preset düzeltmek: `src/data/gases.js`.
-- Yeni parametre kontrolü eklemek: `src/components/controls/ParameterPanel.jsx` ve gerekirse `src/hooks/useParams.js`.
+- Yeni parametre kontrolü eklemek: `src/components/controls/ParameterPanel.jsx`,
+  ortak doğrudan yazılabilir slider davranışı için `src/components/ui/Slider.jsx`
+  ve gerekirse `src/hooks/useParams.js`.
 - Formül veya sayısal hesap değiştirmek: yalnızca `src/physics/` içinde başlat.
 - 2B grafik davranışı değiştirmek: ilgili `src/components/views/*View.jsx`.
+- 2B grafik zoom/pan davranışı değiştirmek: önce `src/hooks/useChartZoom.js`,
+  sonra ilgili view bileşenleri.
+- Grafik tam ekran davranışı değiştirmek: `src/hooks/useFullscreen.js`,
+  `src/components/ui/FullscreenButton.jsx` ve ilgili view bileşenleri.
 - 3B eksen seçeneği eklemek: `src/data/axisPresets.js`.
 - Ortak UI parçası eklemek: önce `src/components/ui/`.
 

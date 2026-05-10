@@ -14,20 +14,27 @@ import {
 import { vdw } from '../../physics/vdw.js';
 import { tagVdw, lambda } from '../../physics/metastable.js';
 import { rhoFromVm } from '../../physics/density.js';
+import { ATM_TO_BAR } from '../../physics/constants.js';
 import { findSpinodal, findGasVolumeAtPressure } from '../../physics/spinodal.js';
 import { useChartZoom } from '../../hooks/useChartZoom.js';
+import { useFullscreen } from '../../hooks/useFullscreen.js';
 import { formatCompactTick, linspace } from '../../utils/format.js';
+import { chartAxisLabel, chartLegendStyle, chartReferenceLabel, chartTick } from '../../utils/chartStyles.js';
 import { exportCsv, exportPngFromElement, exportSvgFromElement } from '../../utils/exportChart.js';
 import ChartTooltip from '../ui/ChartTooltip.jsx';
 import ExportMenu from '../ui/ExportMenu.jsx';
+import FullscreenButton from '../ui/FullscreenButton.jsx';
 
 export default function JumpAnimationView({ params, T, modelMode, axisMode }) {
-  const { a, b, Vmin, Vmax, M } = params;
+  const { a, b, Pcr, Vmin, Vmax, M } = params;
   const isTag = modelMode === 'tag' || modelMode === 'compare';
   const useRho = axisMode === 'rho';
   const xKey = useRho ? 'rho' : 'Vm';
   const xLabel = useRho ? 'ρ  [g/L]' : 'Vₘ  [L/mol]';
   const xUnit = useRho ? 'g/L' : 'L/mol';
+  const pcrTooltipRows = [{ label: 'Pcr', value: `${(Pcr * ATM_TO_BAR).toFixed(1)} bar` }];
+  const formatPressureBar = (value, decimals = 2) => `${(Number(value) * ATM_TO_BAR).toFixed(decimals)} bar`;
+  const toBarOrNull = (value) => (Number.isFinite(value) ? value * ATM_TO_BAR : null);
 
   const [playing, setPlaying] = useState(true);
   const [tau, setTau] = useState(3.0);
@@ -37,6 +44,7 @@ export default function JumpAnimationView({ params, T, modelMode, axisMode }) {
   const rafRef = useRef();
   const lastTickRef = useRef(Date.now());
   const chartRef = useRef(null);
+  const { isFullscreen, exitFullscreen, toggleFullscreen } = useFullscreen(chartRef);
 
   const spinodal = useMemo(
     () => findSpinodal(T, a, b, Vmin, Vmax),
@@ -140,22 +148,47 @@ export default function JumpAnimationView({ params, T, modelMode, axisMode }) {
   const lambdaVal = lambda(tau);
   const jumpLine = spinodal ? spinodal.pMin : null;
 
-  const shadedData = iso.map((d, i) => ({
-    ...d,
-    p_tag_curve: isTag ? d.p_ext : null,
-    p_meta_liquid: spinodal && i <= branchIndexes.liqIdx ? d.p_vdw : null,
-    p_gas: spinodal && i >= branchIndexes.gasIdx ? d.p_vdw : null,
-    p_unstable: spinodal && i > branchIndexes.liqIdx && i < branchIndexes.gasIdx ? d.p_vdw : null,
-    p_jump_path: spinodal && gasLandVm && d.Vm >= spinodal.Vliq && d.Vm <= gasLandVm ? spinodal.pMin : null,
-    p_single_phase: !spinodal ? d.p_vdw : null,
-  }));
+  const shadedData = iso.map((d, i) => {
+    const pTagCurve = isTag ? d.p_ext : null;
+    const pMetaLiquid = spinodal && i <= branchIndexes.liqIdx ? d.p_vdw : null;
+    const pGas = spinodal && i >= branchIndexes.gasIdx ? d.p_vdw : null;
+    const pUnstable = spinodal && i > branchIndexes.liqIdx && i < branchIndexes.gasIdx ? d.p_vdw : null;
+    const pJumpPath = spinodal && gasLandVm && d.Vm >= spinodal.Vliq && d.Vm <= gasLandVm ? spinodal.pMin : null;
+    const pSinglePhase = !spinodal ? d.p_vdw : null;
+
+    return {
+      ...d,
+      p_tag_curve: pTagCurve,
+      p_meta_liquid: pMetaLiquid,
+      p_gas: pGas,
+      p_unstable: pUnstable,
+      p_jump_path: pJumpPath,
+      p_single_phase: pSinglePhase,
+      p_vdw_bar: toBarOrNull(d.p_vdw),
+      p_ext_bar: toBarOrNull(d.p_ext),
+      p_tag_curve_bar: toBarOrNull(pTagCurve),
+      p_meta_liquid_bar: toBarOrNull(pMetaLiquid),
+      p_gas_bar: toBarOrNull(pGas),
+      p_unstable_bar: toBarOrNull(pUnstable),
+      p_jump_path_bar: toBarOrNull(pJumpPath),
+      p_single_phase_bar: toBarOrNull(pSinglePhase),
+    };
+  });
+
+  const autoDomainData = useMemo(
+    () => (spinodal && gasLandVm
+      ? iso.filter((point) => point.Vm >= spinodal.Vliq && point.Vm <= gasLandVm)
+      : iso),
+    [gasLandVm, iso, spinodal]
+  );
 
   const {
     xDomain,
     visibleData,
     selectionDomain,
+    containerHandlers,
     chartHandlers,
-  } = useChartZoom(iso, xKey);
+  } = useChartZoom(iso, xKey, { domainData: autoDomainData, wheelEnabled: isFullscreen });
   const zoomedIso = visibleData.length ? visibleData : iso;
 
   const yDomain = useMemo(() => {
@@ -181,14 +214,14 @@ export default function JumpAnimationView({ params, T, modelMode, axisMode }) {
   const csvColumns = [
     { key: 'Vm', label: 'Vm_L_per_mol' },
     { key: 'rho', label: 'rho_g_per_L' },
-    { key: 'p_vdw', label: 'p_classic_atm' },
-    { key: 'p_ext', label: 'p_tag_atm' },
-    { key: 'p_tag_curve', label: 'p_tag_curve_atm' },
-    { key: 'p_meta_liquid', label: 'p_meta_liquid_atm' },
-    { key: 'p_unstable', label: 'p_unstable_atm' },
-    { key: 'p_gas', label: 'p_gas_atm' },
-    { key: 'p_jump_path', label: 'p_jump_path_atm' },
-    { key: 'p_single_phase', label: 'p_single_phase_atm' },
+    { key: 'p_vdw_bar', label: 'p_classic_bar' },
+    { key: 'p_ext_bar', label: 'p_tag_bar' },
+    { key: 'p_tag_curve_bar', label: 'p_tag_curve_bar' },
+    { key: 'p_meta_liquid_bar', label: 'p_meta_liquid_bar' },
+    { key: 'p_unstable_bar', label: 'p_unstable_bar' },
+    { key: 'p_gas_bar', label: 'p_gas_bar' },
+    { key: 'p_jump_path_bar', label: 'p_jump_path_bar' },
+    { key: 'p_single_phase_bar', label: 'p_single_phase_bar' },
   ];
 
   return (
@@ -219,6 +252,7 @@ export default function JumpAnimationView({ params, T, modelMode, axisMode }) {
             onSvg={() => exportSvgFromElement(chartRef.current, `${fileBase}.svg`)}
             onCsv={() => exportCsv(shadedData, csvColumns, `${fileBase}.csv`)}
           />
+          <FullscreenButton isFullscreen={isFullscreen} onClick={toggleFullscreen} />
           <button onClick={() => setPlaying((p) => !p)} disabled={jumped || !canJump}
             className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-slate-400 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-30">
             {playing ? <Pause size={13} /> : <Play size={13} />}
@@ -260,34 +294,45 @@ export default function JumpAnimationView({ params, T, modelMode, axisMode }) {
         </div>
       </div>
 
-      <div ref={chartRef} className="flex-1 px-2 pb-2">
+      <div
+        ref={chartRef}
+        {...containerHandlers}
+        className={isFullscreen
+          ? 'relative h-screen w-screen cursor-grab overflow-hidden bg-white p-6 active:cursor-grabbing'
+          : 'relative flex-1 px-2 pb-2'}
+      >
+        {isFullscreen && (
+          <div className="absolute right-4 top-4 z-20">
+            <FullscreenButton isFullscreen onClick={exitFullscreen} className="shadow-md" />
+          </div>
+        )}
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={shadedData} margin={{ top: 10, right: 24, left: 8, bottom: 25 }} {...chartHandlers}>
             <CartesianGrid stroke="#1e293b" strokeDasharray="2 4" />
             <XAxis dataKey={xKey} type="number" domain={xDomain} allowDataOverflow
               tickFormatter={(v) => (useRho ? v.toFixed(0) : v.toFixed(2))}
-              stroke="#64748b" tick={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace' }}
-              label={{ value: xLabel, position: 'insideBottom', offset: -10, fill: '#94a3b8', fontSize: 11 }} />
+              stroke="#64748b" tick={chartTick}
+              label={{ ...chartAxisLabel, value: xLabel, position: 'insideBottom', offset: -10 }} />
             <YAxis
               domain={yDomain}
               allowDataOverflow
               width={58}
-              tickFormatter={formatCompactTick}
+              tickFormatter={(v) => formatCompactTick(v * ATM_TO_BAR)}
               stroke="#64748b"
-              tick={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace' }}
-              label={{ value: 'p  [atm]', angle: -90, position: 'insideLeft', fill: '#94a3b8', fontSize: 11 }} />
+              tick={chartTick}
+              label={{ ...chartAxisLabel, value: 'p  [bar]', angle: -90, position: 'insideLeft' }} />
             <Tooltip
               content={
                 <ChartTooltip
                   xLabel={useRho ? 'ρ' : 'Vₘ'}
                   xUnit={xUnit}
                   xDecimals={useRho ? 1 : 3}
-                  valueUnit="atm"
-                  valueDecimals={2}
+                  valueFormatter={(val, entry) => [formatPressureBar(val), entry.name ?? entry.dataKey]}
+                  referenceRows={pcrTooltipRows}
                 />
               }
             />
-            <Legend wrapperStyle={{ fontSize: 10, paddingTop: 8 }} />
+            <Legend wrapperStyle={chartLegendStyle} />
 
             {selectionDomain && (
               <ReferenceArea
@@ -311,7 +356,7 @@ export default function JumpAnimationView({ params, T, modelMode, axisMode }) {
             {isTag && jumpLine !== null && (
               <ReferenceLine y={jumpLine} stroke="#ef4444" strokeDasharray="4 4"
                 strokeOpacity={0.35}
-                label={{ value: `p_sıçrama≈${jumpLine.toFixed(2)} atm`, fill: '#ef4444', fontSize: 10, position: 'right' }} />
+                label={{ ...chartReferenceLabel, value: `p_sıçrama≈${(jumpLine * ATM_TO_BAR).toFixed(2)} bar`, fill: '#ef4444', position: 'right' }} />
             )}
             {isTag && <Line dataKey="p_tag_curve" stroke="#10b981" dot={false} name={`TA-vdW izotermi  τ=${tau.toFixed(2)}`} strokeWidth={1.5} strokeDasharray="5 4" connectNulls={false} isAnimationActive={false} />}
             {isTag && spinodal && <Line dataKey="p_meta_liquid" stroke="#3b82f6" dot={false} name="Metastabil sıvı dalı" strokeWidth={3} connectNulls={false} />}

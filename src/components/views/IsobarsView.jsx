@@ -15,14 +15,20 @@ import {
 import { tAtP } from '../../physics/vdw.js';
 import { deltaPm, lambda } from '../../physics/metastable.js';
 import { rhoFromVm } from '../../physics/density.js';
+import { ATM_TO_BAR } from '../../physics/constants.js';
 import { useChartZoom } from '../../hooks/useChartZoom.js';
+import { useFullscreen } from '../../hooks/useFullscreen.js';
 import { formatCompactTick, linspace } from '../../utils/format.js';
+import { getFullDomain } from '../../utils/chartDomain.js';
+import { chartAxisLabel, chartLegendStyle, chartReferenceLabel, chartSmallTick, chartTick } from '../../utils/chartStyles.js';
 import { exportCsv, exportPngFromElement, exportSvgFromElement } from '../../utils/exportChart.js';
 import ChartTooltip from '../ui/ChartTooltip.jsx';
 import ExportMenu from '../ui/ExportMenu.jsx';
+import FullscreenButton from '../ui/FullscreenButton.jsx';
 
 export default function IsobarsView({ params, P, modelMode, axisMode }) {
   const chartRef = useRef(null);
+  const { isFullscreen, exitFullscreen, toggleFullscreen } = useFullscreen(chartRef);
   const { a, b, Tcr, Pcr, Vmin, Vmax, M } = params;
   const isTag = modelMode === 'tag';
   const isCompare = modelMode === 'compare';
@@ -31,6 +37,10 @@ export default function IsobarsView({ params, P, modelMode, axisMode }) {
   const xKey = useRho ? 'rho' : 'Vm';
   const xLabel = useRho ? 'ρ  [g/L]' : 'Vₘ  [L/mol]';
   const xUnit = useRho ? 'g/L' : 'L/mol';
+  const Pbar = P * ATM_TO_BAR;
+  const PcrBar = Pcr * ATM_TO_BAR;
+  const pcrTooltipRows = [{ label: 'Pcr', value: `${PcrBar.toFixed(1)} bar` }];
+  const plotYKeys = ['Tclassic', 'Ttag', 'Tcritical', 'Tlow', 'Thigh'];
 
   const data = useMemo(() => {
     const Vs = linspace(Math.max(Vmin, b * 1.05), Vmax, 300);
@@ -72,21 +82,28 @@ export default function IsobarsView({ params, P, modelMode, axisMode }) {
     xDomain,
     visibleData,
     selectionDomain,
+    containerHandlers,
     chartHandlers,
-  } = useChartZoom(data, xKey);
+  } = useChartZoom(data, xKey, {
+    resetKey: `${Tcr}:${Pcr}:${Vmin}:${Vmax}`,
+    wheelEnabled: isFullscreen,
+  });
   const zoomedData = visibleData.length ? visibleData : data;
 
   const yDomain = useMemo(() => {
     const vals = zoomedData.flatMap((point) =>
-      [point.Tclassic, point.Ttag, point.Tcritical, point.Tlow, point.Thigh].filter(
+      plotYKeys.map((key) => point[key]).filter(
         (value) => Number.isFinite(value) && value > 0
       )
     );
-    if (!vals.length) return [0, 1000];
-    const lo = Math.min(...vals);
-    const hi = Math.max(...vals);
-    return [Math.max(0, lo * 0.9), Math.min(hi * 1.05, Tcr * 3)];
-  }, [zoomedData, Tcr]);
+    vals.push(Tcr);
+    return getFullDomain(vals, {
+      fallback: [0, Math.max(Tcr, 1000)],
+      padRatio: 0.1,
+      minPad: 1,
+      floor: 0,
+    });
+  }, [Tcr, zoomedData]);
 
   const deltaYDomain = useMemo(() => {
     const vals = zoomedData.map((point) => point.deltaT).filter(Number.isFinite);
@@ -100,8 +117,8 @@ export default function IsobarsView({ params, P, modelMode, axisMode }) {
 
   const mainKey = isTag ? 'Ttag' : 'Tclassic';
   const mainColor = isTag ? '#10b981' : '#fbbf24';
-  const mainLabel = isTag ? `TAĞ-vdW @ P=${P.toFixed(1)} atm` : `Klasik vdW @ P=${P.toFixed(1)} atm`;
-  const fileBase = `isobars-${modelMode}-${axisMode}-P${P.toFixed(1)}atm`;
+  const mainLabel = isTag ? `TAĞ-vdW @ P=${Pbar.toFixed(1)} bar` : `Klasik vdW @ P=${Pbar.toFixed(1)} bar`;
+  const fileBase = `isobars-${modelMode}-${axisMode}-P${Pbar.toFixed(1)}bar`;
   const csvColumns = [
     { key: 'Vm', label: 'Vm_L_per_mol' },
     { key: 'rho', label: 'rho_g_per_L' },
@@ -150,10 +167,22 @@ export default function IsobarsView({ params, P, modelMode, axisMode }) {
             onSvg={() => exportSvgFromElement(chartRef.current, `${fileBase}.svg`)}
             onCsv={() => exportCsv(data, csvColumns, `${fileBase}.csv`)}
           />
+          <FullscreenButton isFullscreen={isFullscreen} onClick={toggleFullscreen} />
         </div>
       </div>
 
-      <div ref={chartRef} className="flex-1 min-h-0 px-2">
+      <div
+        ref={chartRef}
+        {...containerHandlers}
+        className={isFullscreen
+          ? 'relative h-screen w-screen cursor-grab overflow-hidden bg-white p-6 active:cursor-grabbing'
+          : 'relative flex-1 min-h-0 px-2'}
+      >
+        {isFullscreen && (
+          <div className="absolute right-4 top-4 z-20">
+            <FullscreenButton isFullscreen onClick={exitFullscreen} className="shadow-md" />
+          </div>
+        )}
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={data} margin={{ top: 10, right: 20, left: 10, bottom: 25 }} {...chartHandlers}>
             <CartesianGrid stroke="#1e293b" strokeDasharray="2 4" />
@@ -164,8 +193,8 @@ export default function IsobarsView({ params, P, modelMode, axisMode }) {
               allowDataOverflow
               tickFormatter={(v) => (useRho ? v.toFixed(0) : v.toFixed(2))}
               stroke="#64748b"
-              tick={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace' }}
-              label={{ value: xLabel, position: 'insideBottom', offset: -10, fill: '#94a3b8', fontSize: 11 }}
+              tick={chartTick}
+              label={{ ...chartAxisLabel, value: xLabel, position: 'insideBottom', offset: -10 }}
             />
             <YAxis
               domain={yDomain}
@@ -173,8 +202,8 @@ export default function IsobarsView({ params, P, modelMode, axisMode }) {
               width={58}
               tickFormatter={formatCompactTick}
               stroke="#64748b"
-              tick={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace' }}
-              label={{ value: 'T  [K]', angle: -90, position: 'insideLeft', fill: '#94a3b8', fontSize: 11 }}
+              tick={chartTick}
+              label={{ ...chartAxisLabel, value: 'T  [K]', angle: -90, position: 'insideLeft' }}
             />
             <Tooltip
               content={
@@ -184,15 +213,16 @@ export default function IsobarsView({ params, P, modelMode, axisMode }) {
                   xDecimals={useRho ? 1 : 3}
                   valueUnit="K"
                   valueDecimals={2}
+                  referenceRows={pcrTooltipRows}
                 />
               }
             />
-            <Legend wrapperStyle={{ fontSize: 10, paddingTop: 8 }} />
+            <Legend wrapperStyle={chartLegendStyle} />
             <ReferenceLine
               y={Tcr}
               stroke="#64748b"
               strokeDasharray="3 3"
-              label={{ value: 'Tcr', fill: '#94a3b8', fontSize: 10, position: 'right' }}
+              label={{ ...chartReferenceLabel, value: `Tcr=${Tcr.toFixed(1)} K`, position: 'right' }}
             />
 
             {selectionDomain && (
@@ -213,7 +243,7 @@ export default function IsobarsView({ params, P, modelMode, axisMode }) {
               dataKey="Tlow"
               stroke="#c084fc"
               dot={false}
-              name={`P=${(Pcr * 0.5).toFixed(1)} atm`}
+              name={`P=${(PcrBar * 0.5).toFixed(1)} bar`}
               strokeWidth={1}
               strokeDasharray="3 3"
               isAnimationActive={false}
@@ -222,7 +252,7 @@ export default function IsobarsView({ params, P, modelMode, axisMode }) {
               dataKey="Tcritical"
               stroke="#ef4444"
               dot={false}
-              name={`Pcr=${Pcr.toFixed(1)} atm`}
+              name={`Pcr=${PcrBar.toFixed(1)} bar`}
               strokeWidth={1.5}
               isAnimationActive={false}
             />
@@ -230,7 +260,7 @@ export default function IsobarsView({ params, P, modelMode, axisMode }) {
               dataKey="Thigh"
               stroke="#60a5fa"
               dot={false}
-              name={`P=${(Pcr * 1.5).toFixed(1)} atm`}
+              name={`P=${(PcrBar * 1.5).toFixed(1)} bar`}
               strokeWidth={1}
               strokeDasharray="3 3"
               isAnimationActive={false}
@@ -242,7 +272,7 @@ export default function IsobarsView({ params, P, modelMode, axisMode }) {
                   dataKey="Tclassic"
                   stroke="#fbbf24"
                   dot={false}
-                  name={`Klasik @ P=${P.toFixed(1)} atm`}
+                  name={`Klasik @ P=${Pbar.toFixed(1)} bar`}
                   strokeWidth={2.5}
                   strokeDasharray="5 3"
                   isAnimationActive={false}
@@ -251,7 +281,7 @@ export default function IsobarsView({ params, P, modelMode, axisMode }) {
                   dataKey="Ttag"
                   stroke="#10b981"
                   dot={false}
-                  name={`TAĞ @ P=${P.toFixed(1)} atm`}
+                  name={`TAĞ @ P=${Pbar.toFixed(1)} bar`}
                   strokeWidth={3}
                   isAnimationActive={false}
                 />
@@ -290,13 +320,13 @@ export default function IsobarsView({ params, P, modelMode, axisMode }) {
               allowDataOverflow
               tickFormatter={(v) => (useRho ? v.toFixed(0) : v.toFixed(2))}
               stroke="#475569"
-              tick={{ fontSize: 9, fontFamily: 'JetBrains Mono, monospace' }}
+              tick={chartSmallTick}
             />
             <YAxis
               domain={deltaYDomain}
               allowDataOverflow
               stroke="#475569"
-              tick={{ fontSize: 9, fontFamily: 'JetBrains Mono, monospace' }}
+              tick={chartSmallTick}
               width={52}
               tickFormatter={formatCompactTick}
             />
@@ -307,6 +337,7 @@ export default function IsobarsView({ params, P, modelMode, axisMode }) {
                   xUnit={xUnit}
                   xDecimals={useRho ? 1 : 3}
                   valueFormatter={(val) => [`${Number(val).toFixed(2)} K`, 'ΔT']}
+                  referenceRows={pcrTooltipRows}
                 />
               }
             />

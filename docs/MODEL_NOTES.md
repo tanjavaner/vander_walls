@@ -6,7 +6,8 @@ Formül değişikliği yapılırsa önce bu dosya güncellenmeli, sonra
 
 ## Birim Sistemi
 
-- Basınç `p`: atm
+- Basınç `p`: model içinde atm. Kullanıcı arayüzünde basınç kontrolleri,
+  grafik eksenleri, lejantlar ve tooltip değerleri bar olarak gösterilir.
 - Sıcaklık `T`: K
 - Molar hacim `Vm`: L/mol
 - Yoğunluk `rho`: g/L
@@ -50,8 +51,7 @@ T_tag(Vm, P) = ((P - meta(Vm)) + a / Vm^2) (Vm - b) / R
 
 ## Kritik Değerler
 
-Uygulama içinde grafikte gösterilen kritik değerler her zaman `a` ve `b`
-değerlerinden türetilir:
+vdW denkleminin kendi kritik değerleri `a` ve `b` sabitlerinden türetilebilir:
 
 ```text
 Vc  = 3 b
@@ -59,10 +59,11 @@ Tcr = 8 a / (27 R b)
 Pcr = a / (27 b^2)
 ```
 
-Gaz veri tabanında deneysel kritik referanslar `TcrRef` ve `PcrRef` olarak
-saklanabilir, fakat grafiklerde ve hesaplarda kullanılan `Tcr/Pcr` vdW
-modelinin kendi türetilmiş değerleridir. Bu ayrım, `a,b` ile kritik çizgilerin
-birbirine karışmasını önler.
+Preset ilk yüklenirken varsayılan `Tcr/Pcr` bu vdW türetiminden gelir. Kullanıcı
+arayüzünde ise `Tcr` ve `Pcr` düzenlenebilir referans değerlerdir; `a` veya `b`
+değiştiğinde otomatik olarak ezilmezler ve birbirlerini değiştirmezler. Bu
+referanslar kritik çizgileri, tooltipte gösterilen `Pcr` satırını ve çalışma
+noktası aralıklarını belirler.
 
 ## TA-vdW Metastabil Katkısı
 
@@ -104,7 +105,8 @@ Spinodal koşulu:
 dp/dVm = -R T / (Vm - b)^2 + 2 a / Vm^3 = 0
 ```
 
-`T < Tcr` iken iki kök beklenir:
+Spinodal çözümü vdW denkleminin `a,b` sabitlerinden türettiği model kritik
+sıcaklığını kullanır. `T < Tcr_model` iken iki kök beklenir:
 
 - `Vliq`: küçük hacim tarafı, yerel basınç minimumu `pMin`.
 - `Vgas`: büyük hacim tarafı, yerel basınç maksimumu `pMax`.
@@ -129,7 +131,7 @@ p_vdw(Vgas_land, T) = pMin
 Vgas_land > Vgas
 ```
 
-`T >= Tcr` için spinodal yoktur; görünüm tek faz olarak davranmalıdır ve
+`T >= Tcr_model` için spinodal yoktur; görünüm tek faz olarak davranmalıdır ve
 sıçrama animasyonu çalışmamalıdır.
 
 ## T-t Termogram

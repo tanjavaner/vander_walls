@@ -9,14 +9,15 @@
 import { vdw } from '../physics/vdw.js';
 import { deltaPm, lambda } from '../physics/metastable.js';
 import { rhoFromVm } from '../physics/density.js';
+import { ATM_TO_BAR } from '../physics/constants.js';
 
 /** Seçilebilir değişkenler ve UI renkleri. */
 export const AXIS_VARS = {
   Vm:     { label: 'Vₘ  (molyar hacim)',     unit: 'L/mol', color: '#60a5fa' },
   rho:    { label: 'ρ  (yoğunluk)',          unit: 'g/L',   color: '#22d3ee' },
   T:      { label: 'T  (sıcaklık)',          unit: 'K',     color: '#fbbf24' },
-  p:      { label: 'p  (basınç)',            unit: 'atm',   color: '#10b981' },
-  dp:     { label: 'Δp  (metastabil katkı)', unit: 'atm',   color: '#a78bfa' },
+  p:      { label: 'p  (basınç)',            unit: 'bar',   color: '#10b981' },
+  dp:     { label: 'Δp  (metastabil katkı)', unit: 'bar',   color: '#a78bfa' },
   lambda: { label: 'Λ  (ağırlık fonk.)',     unit: '—',     color: '#f472b6' },
 };
 
@@ -45,9 +46,9 @@ export function computeVar(varKey, Vm, T, params, withMeta) {
     case 'p': {
       let p = vdw(Vm, T, params.a, params.b);
       if (withMeta) p += deltaPm(Vm, params.A, params.V0, params.sigma) * lambda(params.tau);
-      return p;
+      return p * ATM_TO_BAR;
     }
-    case 'dp':     return deltaPm(Vm, params.A, params.V0, params.sigma) * lambda(params.tau);
+    case 'dp':     return deltaPm(Vm, params.A, params.V0, params.sigma) * lambda(params.tau) * ATM_TO_BAR;
     case 'lambda': return lambda(params.tau);
     default:       return 0;
   }

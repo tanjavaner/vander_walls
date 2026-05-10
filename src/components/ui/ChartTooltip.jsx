@@ -18,6 +18,7 @@ export default function ChartTooltip({
   valueUnit = '',
   valueDecimals = 2,
   valueFormatter,
+  referenceRows = [],
 }) {
   if (!active || !payload?.length) return null;
 
@@ -28,13 +29,24 @@ export default function ChartTooltip({
   if (!rows.length) return null;
 
   return (
-    <div className="min-w-44 rounded-md border border-slate-700 bg-slate-950 px-3 py-2 font-mono text-[11px] text-slate-100 shadow-lg">
+    <div className="min-w-52 rounded-md border border-slate-700 bg-slate-950 px-3 py-2 font-mono text-xs text-slate-100 shadow-lg">
       <div className="mb-2 border-b border-slate-700 pb-1.5">
-        <div className="text-[9px] uppercase tracking-wider text-slate-400">X ekseni</div>
-        <div className="tabular-nums text-slate-50">
+        <div className="text-[10px] uppercase tracking-wider text-slate-400">X ekseni</div>
+        <div className="font-semibold tabular-nums text-slate-50">
           {xLabel} = {formatWithUnit(label, xDecimals, xUnit)}
         </div>
       </div>
+
+      {referenceRows.length > 0 && (
+        <div className="mb-2 space-y-1 border-b border-slate-700 pb-1.5">
+          {referenceRows.map((row) => (
+            <div key={row.label} className="flex items-center justify-between gap-4">
+              <span className="text-slate-400">{row.label}</span>
+              <span className="font-semibold tabular-nums text-slate-50">{row.value}</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="space-y-1">
         {rows.map((entry) => {
@@ -54,7 +66,7 @@ export default function ChartTooltip({
                 />
                 <span className="truncate">{name}</span>
               </span>
-              <span className="shrink-0 tabular-nums text-slate-50">{value}</span>
+              <span className="shrink-0 font-semibold tabular-nums text-slate-50">{value}</span>
             </div>
           );
         })}

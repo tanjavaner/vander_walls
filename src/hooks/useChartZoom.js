@@ -25,15 +25,42 @@ function getActiveXValue(event, xKey) {
   return Number.isFinite(payloadValue) ? payloadValue : null;
 }
 
-export function useChartZoom(data, xKey) {
+function clamp01(value) {
+  return Math.max(0, Math.min(1, value));
+}
+
+function clampDomain([lo, hi], fullDomain, minSpan) {
+  let nextLo = lo;
+  let nextHi = hi;
+  const span = nextHi - nextLo;
+
+  if (span <= minSpan) return null;
+
+  if (nextLo < fullDomain[0]) {
+    nextHi += fullDomain[0] - nextLo;
+    nextLo = fullDomain[0];
+  }
+
+  if (nextHi > fullDomain[1]) {
+    nextLo -= nextHi - fullDomain[1];
+    nextHi = fullDomain[1];
+  }
+
+  nextLo = Math.max(nextLo, fullDomain[0]);
+  nextHi = Math.min(nextHi, fullDomain[1]);
+  return nextHi - nextLo > minSpan ? [nextLo, nextHi] : null;
+}
+
+export function useChartZoom(data, xKey, { domainData = data, resetKey = null, wheelEnabled = false } = {}) {
   const fullXDomain = useMemo(
-    () => getFiniteExtent(data.map((point) => point[xKey])),
-    [data, xKey]
+    () => getFiniteExtent(domainData.map((point) => point[xKey]), getFiniteExtent(data.map((point) => point[xKey]))),
+    [data, domainData, xKey]
   );
 
   const [zoomXDomain, setZoomXDomain] = useState(null);
   const [dragStart, setDragStart] = useState(null);
   const [dragEnd, setDragEnd] = useState(null);
+  const [panStart, setPanStart] = useState(null);
 
   const minSpan = useMemo(
     () => Math.max((fullXDomain[1] - fullXDomain[0]) * 0.01, 1e-6),
@@ -44,7 +71,8 @@ export function useChartZoom(data, xKey) {
     setZoomXDomain(null);
     setDragStart(null);
     setDragEnd(null);
-  }, [xKey]);
+    setPanStart(null);
+  }, [resetKey, xKey]);
 
   useEffect(() => {
     setZoomXDomain((current) => {
@@ -76,6 +104,7 @@ export function useChartZoom(data, xKey) {
   const clearSelection = () => {
     setDragStart(null);
     setDragEnd(null);
+    setPanStart(null);
   };
 
   const resetZoom = () => {
@@ -85,21 +114,45 @@ export function useChartZoom(data, xKey) {
 
   const setClampedZoom = (nextDomain) => {
     const [lo, hi] = normalizeRange(nextDomain[0], nextDomain[1]);
-    const nextLo = Math.max(lo, fullXDomain[0]);
-    const nextHi = Math.min(hi, fullXDomain[1]);
+    const clamped = clampDomain([lo, hi], fullXDomain, minSpan);
 
-    if (nextHi - nextLo <= minSpan) return;
-    if (nextLo <= fullXDomain[0] && nextHi >= fullXDomain[1]) {
+    if (!clamped) return;
+    if (clamped[0] <= fullXDomain[0] && clamped[1] >= fullXDomain[1]) {
       setZoomXDomain(null);
       return;
     }
 
-    setZoomXDomain([nextLo, nextHi]);
+    setZoomXDomain(clamped);
+  };
+
+  const zoomAround = (anchor, factor) => {
+    if (!Number.isFinite(anchor) || !Number.isFinite(factor) || factor <= 0) return;
+
+    const [lo, hi] = xDomain;
+    const span = hi - lo;
+    const nextSpan = Math.max(minSpan, Math.min(fullXDomain[1] - fullXDomain[0], span * factor));
+    const ratio = span > 0 ? (anchor - lo) / span : 0.5;
+    const nextLo = anchor - nextSpan * ratio;
+    const nextHi = nextLo + nextSpan;
+    setClampedZoom([nextLo, nextHi]);
+  };
+
+  const panBy = (delta) => {
+    if (!Number.isFinite(delta) || Math.abs(delta) < 1e-12) return;
+    const [lo, hi] = xDomain;
+    setClampedZoom([lo + delta, hi + delta]);
   };
 
   const onMouseDown = (event) => {
     const value = getActiveXValue(event, xKey);
     if (!Number.isFinite(value)) return;
+    if (wheelEnabled) {
+      setPanStart({ value, domain: xDomain });
+      setDragStart(null);
+      setDragEnd(null);
+      return;
+    }
+
     setDragStart(value);
     setDragEnd(value);
   };
@@ -107,6 +160,12 @@ export function useChartZoom(data, xKey) {
   const onMouseMove = (event) => {
     const value = getActiveXValue(event, xKey);
     if (!Number.isFinite(value)) return;
+    if (panStart) {
+      const delta = panStart.value - value;
+      setClampedZoom([panStart.domain[0] + delta, panStart.domain[1] + delta]);
+      return;
+    }
+
     if (!Number.isFinite(dragStart)) return;
     setDragEnd(value);
   };
@@ -123,11 +182,33 @@ export function useChartZoom(data, xKey) {
     setClampedZoom([lo, hi]);
   };
 
+  const onContainerWheel = (event) => {
+    if (!wheelEnabled) return;
+
+    event.preventDefault();
+    const span = xDomain[1] - xDomain[0];
+    if (span <= 0) return;
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    const ratio = rect.width > 0 ? clamp01((event.clientX - rect.left) / rect.width) : 0.5;
+    const anchor = xDomain[0] + ratio * span;
+    const deltaX = Number(event.deltaX ?? 0);
+    const deltaY = Number(event.deltaY ?? 0);
+
+    if (event.shiftKey || Math.abs(deltaX) > Math.abs(deltaY)) {
+      panBy((deltaX || deltaY) * (span / 700));
+      return;
+    }
+
+    zoomAround(anchor, Math.exp(deltaY * 0.0015));
+  };
+
   return {
     xDomain,
     visibleData,
     selectionDomain,
     isZoomed: zoomXDomain !== null,
+    isPanning: panStart !== null,
     resetZoom,
     chartHandlers: {
       onMouseDown,
@@ -135,6 +216,9 @@ export function useChartZoom(data, xKey) {
       onMouseUp: finishZoom,
       onMouseLeave: finishZoom,
       onDoubleClick: resetZoom,
+    },
+    containerHandlers: {
+      onWheel: onContainerWheel,
     },
   };
 }
